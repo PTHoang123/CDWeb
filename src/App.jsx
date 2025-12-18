@@ -1,34 +1,34 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
+import ChatLayout from "./components/ChatLayout";
 import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <ChatLayout
+      sidebar={
+        <div style={{ padding: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>Chats</div>
+          <input
+            placeholder="Search"
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,.12)",
+              background: "rgba(255,255,255,.04)",
+              color: "inherit",
+              outline: "none",
+            }}
+          />
+        </div>
+      }
+      chat={
+        <div style={{ padding: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>Chat</div>
+          <div style={{ opacity: 0.7 }}>Select a conversation…</div>
+        </div>
+      }
+      details={<div style={{ padding: 16, opacity: 0.7 }}>Details</div>}
+    />
   );
 }
 
