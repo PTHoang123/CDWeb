@@ -23,11 +23,10 @@ function App() {
       }
       chat={
         <div style={{ padding: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 12 }}>Chat</div>
-          <div style={{ opacity: 0.7 }}>Select a conversation…</div>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>Hội anh em 36</div>
+          <div style={{ opacity: 0.7 }}>Hello world</div>
         </div>
       }
-      details={<div style={{ padding: 16, opacity: 0.7 }}>Details</div>}
     />
   );
 }
