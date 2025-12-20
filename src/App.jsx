@@ -1,6 +1,6 @@
 import ChatLayout from "./components/ChatLayout";
-import Sidebar from "./components/Sidebar";
-import ChatWindow from "./components/ChatWindow";
+import Sidebar from "./components/Navigation/Sidebar.jsx";
+import ChatWindow from "./components/ChatWindow/ChatWindow.jsx";
 import "./App.css";
 
 function App() {
