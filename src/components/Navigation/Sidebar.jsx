@@ -13,18 +13,19 @@ const Sidebar = () => {
 
             {/* Thanh chức năng */}
             <div className="nav-menu-items">
-                <div classname="nav-item active">
+                <div className="nav-item active">
                     <MessageSquare size={26}/>
                 </div>
                 <div className="nav-item">
                     <Contact size={26}/>
                 </div>
-                <div className="nav-item">
-                    <CheckSquare size={26}/>
-                </div>
+
             </div>
 
             <div className="nav-group-bottom">
+                <div className="nav-item">
+                    <CheckSquare size={26}/>
+                </div>
                 <div className="nav-item">
                     <Cloud size={24}/>
                 </div>

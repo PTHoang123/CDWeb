@@ -1,4 +1,4 @@
-.app-navigation {
+.sidebar-nav {
     width: 64px;
     height: 100vh;
     background-color: #0068ff;
@@ -14,7 +14,7 @@
     height: 45px;
     border-radius: 50%;
     overflow: hidden;
-    margin-bottom: 25px;
+    margin-bottom: 10px;
     cursor: pointer;
     border: 2px solid rgba(255, 255, 255, 0.2);
 }
@@ -43,12 +43,12 @@
 }
 
 .nav-item:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.15);
     color: #ffffff;
 }
 
 .nav-item.active {
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(0, 0, 0, 0.1);
     color: #ffffff;
 }
 
