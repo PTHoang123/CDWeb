@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import MessageBubble from "./MessageBubble";
+import MessageBubble from "./MessageBubble.jsx";
 import "./chatWindow.css";
 
 export default function ChatWindow({ title = "Chat", initialMessages }) {
