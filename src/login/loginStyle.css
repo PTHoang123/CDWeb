@@ -1,64 +1,129 @@
-/* src/styles/loginstyle.css */
-.login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+/* Login.css */
+.login-body-wrapper {
+    margin: 0;
     height: 100vh;
-    background-color: #f0f2f5;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    box-sizing: border-box;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.login-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
+.login-container {
+    width: 360px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.app-title {
     text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: #4b3fa7;
+    margin-bottom: 8px;
 }
 
-.login-card h2 {
-    color: #075e54; /* Màu xanh đặc trưng của app chat */
-    margin-bottom: 1.5rem;
+.subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 24px;
 }
 
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 16px;
     text-align: left;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 0.5rem;
-    color: #333;
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 6px;
 }
 
 .form-group input {
     width: 100%;
-    padding: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
     border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box; /* Quan trọng để input không bị tràn */
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+    box-sizing: border-box;
 }
 
-.btn-login {
+.form-group input:focus {
+    border-color: #667eea;
+}
+
+.login-btn {
     width: 100%;
     padding: 12px;
-    background-color: #128c7e;
-    color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
-    font-size: 16px;
-    transition: background 0.3s;
+    margin-top: 8px;
 }
 
-.btn-login:hover {
-    background-color: #075e54;
+.login-btn:hover {
+    opacity: 0.95;
 }
 
-.logout-section {
+.extra {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    font-size: 13px;
+}
+
+.extra a {
+    text-decoration: none;
+    color: #667eea;
+}
+
+.divider {
     text-align: center;
-    margin-top: 50px;
+    margin: 22px 0 16px;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.social-login {
+    display: flex;
+    gap: 12px;
+}
+
+.social-btn {
+    flex: 1;
+    padding: 10px 0;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.social-btn:hover {
+    background: #f5f5f5;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 13px;
+    color: #555;
+}
+
+.footer a {
+    color: #764ba2;
+    text-decoration: none;
+    font-weight: 600;
 }

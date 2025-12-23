@@ -1,70 +1,50 @@
-// src/components/Login.jsx
-import React, { useState } from 'react';
-import '../login/loginStyle.css';
+import React from 'react';
+import './loginStyle.css';
 
 const Login = () => {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [credentials, setCredentials] = useState({ email: '', password: '' });
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setCredentials({ ...credentials, [name]: value });
-    };
-
     const handleLogin = (e) => {
         e.preventDefault();
-        // Giả lập logic đăng nhập
-        if (credentials.email && credentials.password) {
-            setIsLoggedIn(true);
-            console.log("Đã đăng nhập với:", credentials.email);
-        } else {
-            alert("Vui lòng nhập đầy đủ thông tin!");
-        }
+        // Xử lý logic đăng nhập ở đây
+        console.log("Đang đăng nhập...");
     };
-
-    const handleLogout = () => {
-        setIsLoggedIn(false);
-        setCredentials({ email: '', password: '' });
-    };
-
-    if (isLoggedIn) {
-        return (
-            <div className="logout-section">
-                <h1>Chào mừng bạn đến với Chat App!</h1>
-                <button className="btn-login" onClick={handleLogout} style={{width: '200px'}}>
-                    Đăng xuất
-                </button>
-            </div>
-        );
-    }
 
     return (
-        <div className="login-container">
-            <div className="login-card">
-                <h2>Chat App Login</h2>
+        <div className="login-body-wrapper">
+            <div className="login-container">
+                <div className="app-title">Chatify</div>
+                <div className="subtitle">Đăng nhập để bắt đầu trò chuyện</div>
+
                 <form onSubmit={handleLogin}>
                     <div className="form-group">
-                        <label>Email</label>
-                        <input
-                            type="email"
-                            name="email"
-                            placeholder="Nhập email của bạn"
-                            value={credentials.email}
-                            onChange={handleInputChange}
-                        />
+                        <label>Email hoặc Username</label>
+                        <input type="text" placeholder="Nhập email hoặc username" required />
                     </div>
+
                     <div className="form-group">
                         <label>Mật khẩu</label>
-                        <input
-                            type="password"
-                            name="password"
-                            placeholder="Nhập mật khẩu"
-                            value={credentials.password}
-                            onChange={handleInputChange}
-                        />
+                        <input type="password" placeholder="Nhập mật khẩu" required />
                     </div>
-                    <button type="submit" className="btn-login">Đăng nhập</button>
+
+                    <button type="submit" className="login-btn">
+                        Đăng nhập
+                    </button>
                 </form>
+
+                <div className="extra">
+                    <a href="#forgot">Quên mật khẩu?</a>
+                    <a href="#register">Đăng ký</a>
+                </div>
+
+                <div className="divider">hoặc</div>
+
+                <div className="social-login">
+                    <button className="social-btn">Google</button>
+                    <button className="social-btn">Facebook</button>
+                </div>
+
+                <div className="footer">
+                    Chưa có tài khoản? <a href="#create">Tạo tài khoản mới</a>
+                </div>
             </div>
         </div>
     );
