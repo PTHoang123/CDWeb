@@ -8,11 +8,14 @@ import Login from "./login/login.jsx";
 
 function App() {
     const [user, setUser] = useState(null);
+
     // Nếu chưa đăng nhập, trả về trang Login
     if (!user) {
         return <Login onLoginSuccess={(userData) => setUser(userData)} />;
     }
+
     console.log("User logged in:", user);
+
     // Đã đăng nhập thành công
     return (
         <ChatLayout
