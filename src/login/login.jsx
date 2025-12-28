@@ -27,24 +27,22 @@ const Login = ({ onLoginSuccess }) => {
     setLoading(true);
     setError("");
 
-    const finalUser = autoUser || username;
-    const finalPass = autoPass || password;
-
     try {
-      const userData = await loginOverWs(client, finalUser, finalPass);
+      const finalUser = autoUser || username;
+      const finalPass = autoPass || password;
 
-      // Lưu mã RE_LOGIN_CODE để dùng sau này
-      if (userData?.RE_LOGIN_CODE) {
-        localStorage.setItem("relogin_code", userData.RE_LOGIN_CODE);
+      // Gọi hàm đăng nhập qua WS
+      const res = await loginOverWs(client, finalUser, finalPass);
+
+      // QUAN TRỌNG: Kiểm tra res có dữ liệu không
+      if (res) {
+        console.log("Dữ liệu User nhận được:", res);
+        onLoginSuccess(res); // Lúc này App.jsx mới nhận được user và chuyển trang
+      } else {
+        setError("Server trả về dữ liệu trống");
       }
-
-      onLoginSuccess({
-        username: finalUser,
-        provider: "password",
-        userData,
-      });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Sai tài khoản hoặc mật khẩu");
     } finally {
       setLoading(false);
     }
