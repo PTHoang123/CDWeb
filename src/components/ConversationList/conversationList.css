@@ -1,0 +1,121 @@
+
+.conv-list {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+}
+
+.conv-header {
+    padding: 16px 16px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.conv-search-box {
+    flex: 1;
+    background-color: #eaedf0;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.conv-search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    font-size: 14px;
+    color: #333;
+}
+
+.conv-icon-btn {
+    padding: 4px;
+    color: #475467;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.conv-icon-btn:hover { background-color: #f1f1f1; }
+
+
+.conv-tabs {
+    display: flex;
+    padding: 12px 16px 0;
+    border-bottom: 1px solid #e0e0e0;
+    gap: 24px;
+}
+
+.conv-tab {
+    font-size: 14px;
+    font-weight: 600;
+    color: #7589a3;
+    padding-bottom: 12px;
+    cursor: pointer;
+    position: relative;
+}
+
+.conv-tab.active {
+    color: #0068ff;
+}
+
+.conv-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #0068ff;
+}
+
+.conv-items-scroll {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.conv-item {
+    display: flex;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.conv-item:hover { background-color: #f1f1f1; }
+.conv-item.active { background-color: #e5efff; }
+
+.conv-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: 12px;
+    object-fit: cover;
+    border: 1px solid #eee;
+}
+
+.conv-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.conv-row-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.conv-name { font-weight: 600; font-size: 15px; color: #333; }
+.conv-time { font-size: 12px; color: #7589a3; }
+
+.conv-message {
+    font-size: 13px;
+    color: #7589a3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
