@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import "./loginStyle.css";
-import { loginWithWS } from "../api/auth";
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
+import useWs from "../context/useWs";
+import { loginOverWs } from "../api/wsAuth";
 
 const Login = ({ onLoginSuccess }) => {
+  const { client, connected } = useWs();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,16 +31,17 @@ const Login = ({ onLoginSuccess }) => {
     const finalPass = autoPass || password;
 
     try {
-      const result = await loginWithWS(finalUser, finalPass);
+      const userData = await loginOverWs(client, finalUser, finalPass);
 
       // Lưu mã RE_LOGIN_CODE để dùng sau này
-      localStorage.setItem("relogin_code", result.userData.RE_LOGIN_CODE);
+      if (userData?.RE_LOGIN_CODE) {
+        localStorage.setItem("relogin_code", userData.RE_LOGIN_CODE);
+      }
 
-      // Truyền thông tin user và socket về App.jsx
       onLoginSuccess({
         username: finalUser,
-        socket: result.socket,
         provider: "password",
+        userData,
       });
     } catch (err) {
       setError(err.message);
@@ -78,6 +82,18 @@ const Login = ({ onLoginSuccess }) => {
       <div className="login-container">
         <div className="app-title">Chatify</div>
         <div className="subtitle">Chọn tài khoản mẫu hoặc nhập tay</div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: 8,
+          }}
+        >
+          <span style={{ fontSize: 12, opacity: 0.7 }}>
+            WS: {connected ? "online" : "connecting..."}
+          </span>
+        </div>
 
         {/* Google login */}
         <button
