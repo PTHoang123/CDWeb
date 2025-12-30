@@ -3,6 +3,7 @@ import ChatLayout from "./components/ChatLayout";
 import Sidebar from "./components/Navigation/Sidebar";
 import ChatWindow from "./components/ChatWindow/ChatWindow.jsx";
 import ConversationList from "./components/ConversationList/ConversationList.jsx";
+import InfoChat from "./components/InfoChat-Reposity/InfoChatAndRepo.jsx";
 import "./App.css";
 import Login from "./login/login.jsx";
 import { WsProvider } from "./context/WsContext";
@@ -27,6 +28,7 @@ function AppInner() {
           title={`Đang chat: ${user.username ?? user.displayName ?? "User"}`}
         />
       }
+      infochat={<InfoChat />}
     />
   );
 }

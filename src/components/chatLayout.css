@@ -26,6 +26,10 @@
     color: #333;
 }
 
+.chatLayout__info {
+    background-color: #f4f5f7; /* Phông trắng */
+    color: #333;
+}
 /* Responsive: Ẩn cột giữa khi màn hình nhỏ */
 @media (max-width: 1024px) {
     .chatLayout {

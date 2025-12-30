@@ -1,7 +1,7 @@
 import React from "react";
 import "./chatLayout.css";
 
-export default function ChatLayout({navigation, sidebar, chat, className = ""}) {
+export default function ChatLayout({navigation, infochat ,sidebar, chat, className = ""}) {
     return (
         <div className={`chatLayout ${className}`.trim()}>
             {/*  thanh công cụ */}
@@ -10,6 +10,8 @@ export default function ChatLayout({navigation, sidebar, chat, className = ""}) 
             <aside className="chatLayout__sidebar">{sidebar}</aside>
             {/* khung chat */}
             <main className="chatLayout__main">{chat}</main>
+            {/* Thông tin hội thoại */}
+            <aside className="ChatLayout__info">{infochat}</aside>
         </div>
     );
 }
