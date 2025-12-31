@@ -1,10 +1,12 @@
+/* ================= INFO CHAT & REPO - LIGHT MODE ================= */
+
 /* --- Global Container --- */
 .info-panel-container {
-    width: 320px; /* Khớp với layout grid column 4 */
+    width: 320px;
     height: 100vh;
-    background-color: #202124; /* Màu nền tối của panel bên phải */
-    border-left: 1px solid #36373a;
-    color: #e4e6eb;
+    background-color: #ffffff; /* Nền trắng */
+    border-left: 1px solid #d6dbe1; /* Viền xám nhạt */
+    color: #081c36; /* Chữ màu đen xanh đậm (Zalo style) */
     display: flex;
     flex-direction: column;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -17,12 +19,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-bottom: 1px solid #36373a;
+    border-bottom: 1px solid #d6dbe1;
     font-size: 16px;
     font-weight: 600;
     flex-shrink: 0;
     position: relative;
-    background-color: #202124;
+    background-color: #ffffff;
 }
 
 /* --- Scrollable Content Area --- */
@@ -32,9 +34,9 @@
     padding: 0;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (Light) */
 .panel-body::-webkit-scrollbar { width: 6px; }
-.panel-body::-webkit-scrollbar-thumb { background-color: #555; border-radius: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background-color: #cdd0d5; border-radius: 3px; }
 .panel-body::-webkit-scrollbar-track { background-color: transparent; }
 
 /* ================= INFO MODE STYLES ================= */
@@ -54,7 +56,7 @@
     border-radius: 50%;
     margin-bottom: 12px;
     object-fit: cover;
-    border: 2px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(0,0,0,0.1); /* Viền mờ nhẹ */
 }
 
 .info-name-row {
@@ -64,9 +66,10 @@
     font-size: 18px;
     font-weight: 600;
     margin-bottom: 20px;
+    color: #081c36;
 }
 
-/* Action Buttons (Mute, Pin, Add Group) */
+/* Action Buttons */
 .info-actions {
     display: flex;
     justify-content: center;
@@ -81,25 +84,26 @@
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    color: #a0a0a0;
+    color: #7589a3; /* Màu chữ xám cho label */
     font-size: 12px;
 }
 .action-icon-circle {
     width: 40px;
     height: 40px;
-    background-color: #303134;
+    background-color: #eaedf0; /* Nền nút xám nhạt */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: 0.2s;
+    color: #081c36;
 }
-.action-item:hover .action-icon-circle { background-color: #3e4042; }
+.action-item:hover .action-icon-circle { background-color: #dfe2e7; }
 
-/* General Sections (Accordion style) */
+/* General Sections */
 .info-section {
     padding: 12px 16px;
-    border-top: 8px solid #161719; /* Khoảng cách đậm giữa các section */
+    border-top: 8px solid #f5f6f7; /* Khoảng cách xám nhạt giữa các section */
 }
 
 .section-header {
@@ -110,6 +114,7 @@
     font-size: 15px;
     margin-bottom: 12px;
     cursor: pointer;
+    color: #081c36;
 }
 
 /* Grid Preview Ảnh */
@@ -123,7 +128,7 @@
     aspect-ratio: 1;
     border-radius: 4px;
     overflow: hidden;
-    background-color: #333;
+    background-color: #f0f2f5;
 }
 .media-preview-item img {
     width: 100%;
@@ -154,13 +159,20 @@
     font-weight: bold;
     font-size: 10px;
     flex-shrink: 0;
-    color: white;
+    color: white; /* Giữ màu trắng cho text bên trong icon file */
 }
+
 /* File colors based on extension */
-.file-icon.folder { background-color: #ffc107 ; color: #5a4a15; } /* Vàng */
-.file-icon.word { background-color: #0078d4; } /* Xanh word */
-.file-icon.code { background-color: #29b6f6; } /* Xanh code */
-.file-icon.link { background-color: #303134; border: 1px solid #444; }
+.file-icon.folder { background-color: #ffc107; color: #5a4a15; }
+.file-icon.word { background-color: #0078d4; }
+.file-icon.code { background-color: #29b6f6; }
+
+/* Link Icon riêng biệt cho Light Mode */
+.file-icon.link {
+    background-color: #eaedf0;
+    border: 1px solid #d6dbe1;
+    color: #7589a3; /* Icon link màu xám */
+}
 
 .item-details {
     display: flex;
@@ -169,22 +181,29 @@
     flex: 1;
     overflow: hidden;
 }
-.item-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.item-meta { font-size: 12px; color: #8e8e8e; }
+.item-name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #081c36;
+}
+.item-meta { font-size: 12px; color: #7589a3; }
 
 .btn-view-all {
     width: 100%;
     padding: 10px;
     margin-top: 10px;
-    background-color: #303134;
+    background-color: #eaedf0; /* Nền nút xem tất cả */
     border: none;
     border-radius: 4px;
-    color: white;
+    color: #081c36;
     font-weight: 500;
     cursor: pointer;
     transition: 0.2s;
 }
-.btn-view-all:hover { background-color: #3e4042; }
+.btn-view-all:hover { background-color: #dfe2e7; }
 
 /* ================= REPO MODE (KHO LƯU TRỮ) STYLES ================= */
 
@@ -194,6 +213,7 @@
     left: 10px;
     cursor: pointer;
     padding: 5px;
+    color: #081c36;
 }
 .repo-header-right {
     position: absolute;
@@ -207,8 +227,8 @@
 /* Tabs */
 .repo-tabs {
     display: flex;
-    border-bottom: 1px solid #36373a;
-    background-color: #202124;
+    border-bottom: 1px solid #d6dbe1;
+    background-color: #ffffff;
 }
 .repo-tab {
     flex: 1;
@@ -216,11 +236,11 @@
     padding: 12px 0;
     font-size: 14px;
     font-weight: 500;
-    color: #a0a0a0;
+    color: #7589a3;
     cursor: pointer;
     position: relative;
 }
-.repo-tab:hover { color: #e4e6eb; }
+.repo-tab:hover { color: #081c36; }
 .repo-tab.active { color: #0068ff; }
 .repo-tab.active::after {
     content: '';
@@ -235,12 +255,12 @@
 /* Filters */
 .repo-filters {
     padding: 10px 15px;
-    background-color: #202124;
+    background-color: #ffffff;
 }
 .search-box {
     display: flex;
     align-items: center;
-    background-color: #303134;
+    background-color: #eaedf0; /* Nền ô tìm kiếm */
     border-radius: 20px;
     padding: 6px 12px;
     margin-bottom: 10px;
@@ -248,7 +268,7 @@
 .search-box input {
     background: transparent;
     border: none;
-    color: white;
+    color: #081c36;
     width: 100%;
     margin-left: 8px;
     outline: none;
@@ -258,16 +278,17 @@
     gap: 8px;
 }
 .filter-tag {
-    background-color: #303134;
+    background-color: #eaedf0;
     padding: 4px 12px;
     border-radius: 4px;
     font-size: 13px;
-    color: #e4e6eb;
+    color: #081c36;
     display: flex;
     align-items: center;
     gap: 4px;
     cursor: pointer;
 }
+.filter-tag:hover { background-color: #dfe2e7; }
 
 /* Repo List Group */
 .repo-list-container {
@@ -276,7 +297,7 @@
 .date-group-label {
     font-size: 13px;
     font-weight: 600;
-    color: #e4e6eb;
+    color: #081c36;
     margin: 20px 0 10px 0;
 }
 
