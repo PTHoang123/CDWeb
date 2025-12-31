@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from "react";
 import MessageBubble from "./MessageBubble.jsx";
+import {
+    Smile, Image as ImageIcon, Paperclip, Contact, Scan,
+    Type, Zap, CreditCard, MoreHorizontal, ThumbsUp, Send
+} from 'lucide-react';
 import "./chatWindow.css";
 
 export default function ChatWindow({ title = "Chat", initialMessages }) {
@@ -52,6 +56,22 @@ export default function ChatWindow({ title = "Chat", initialMessages }) {
     setMessages((prev) => [...prev, next]);
     setText("");
   }
+    // Xử lý khi bấm nút Like hoặc Send
+    const handleQuickAction = () => {
+        if (canSend) {
+            // Nếu có chữ thì gửi tin nhắn (giả lập submit form)
+            document.querySelector('.chatWindow__composer').requestSubmit();
+        } else {
+            // Nếu không có chữ thì gửi Like (Icon ThumbsUp)
+            const next = {
+                id: `${Date.now()}`,
+                side: "right",
+                content: "👍", // Gửi icon like
+                time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            };
+            setMessages((prev) => [...prev, next]);
+        }
+    };
 
   return (
     <section className="chatWindow">
@@ -66,6 +86,19 @@ export default function ChatWindow({ title = "Chat", initialMessages }) {
       </div>
 
       <footer className="chatWindow__footer">
+          {/* Toolbar các chức năng: Gửi ảnh, file, danh thiếp... */}
+          <div className="chat-toolbar">
+              <div className="toolbar-icon" title="Gửi Sticker"><Smile size={20} /></div>
+              <div className="toolbar-icon" title="Gửi Ảnh"><ImageIcon size={20} /></div>
+              <div className="toolbar-icon" title="Đính kèm File"><Paperclip size={20} /></div>
+              <div className="toolbar-icon" title="Gửi Danh thiếp"><Contact size={20} /></div>
+              <div className="toolbar-icon" title="Chụp màn hình"><Scan size={20} /></div>
+              <div className="toolbar-icon" title="Định dạng tin nhắn"><Type size={20} /></div>
+              <div className="toolbar-icon" title="Tin nhắn nhanh"><Zap size={20} /></div>
+              <div className="toolbar-icon" title="Ví / Chuyển tiền"><CreditCard size={20} /></div>
+              <div className="toolbar-icon" title="Thêm"><MoreHorizontal size={20} /></div>
+          </div>
+          {/* Khu vực nhập liệu */}
         <form className="chatWindow__composer" onSubmit={onSubmit}>
           <input
             className="chatWindow__input"
@@ -73,13 +106,17 @@ export default function ChatWindow({ title = "Chat", initialMessages }) {
             onChange={(e) => setText(e.target.value)}
             placeholder="Type a message..."
           />
-          <button
-            className="chatWindow__send"
-            type="submit"
-            disabled={!canSend}
-          >
-            Send
-          </button>
+            <div className="chat-input-actions">
+                {/* Icon Emoji nằm trong ô nhập (bên phải) */}
+                <div className="action-icon-small" title="Biểu cảm">
+                    <Smile size={20} />
+                </div>
+
+                {/* Nút Gửi hoặc Like */}
+                <div className="action-icon-large" onClick={handleQuickAction} title={canSend ? "Gửi" : "Gửi Like"}>
+                    {canSend ? <Send size={20} color="#0068ff" /> : <ThumbsUp size={20} color="#e5a50a" />}
+                </div>
+            </div>
         </form>
       </footer>
     </section>
