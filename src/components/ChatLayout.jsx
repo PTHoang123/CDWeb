@@ -10,7 +10,7 @@ export default function ChatLayout({navigation, infochat ,sidebar, chat, classNa
             <aside className="chatLayout__sidebar">{sidebar}</aside>
             {/* khung chat */}
             <main className="chatLayout__main">{chat}</main>
-            {/* Thông tin hội thoại */}
+            {/*/!* Thông tin hội thoại *!/*/}
             <aside className="ChatLayout__info">{infochat}</aside>
         </div>
     );

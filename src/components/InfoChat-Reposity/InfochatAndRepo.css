@@ -1,0 +1,288 @@
+/* --- Global Container --- */
+.info-panel-container {
+    width: 320px; /* Khớp với layout grid column 4 */
+    height: 100vh;
+    background-color: #202124; /* Màu nền tối của panel bên phải */
+    border-left: 1px solid #36373a;
+    color: #e4e6eb;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+}
+
+/* --- Common Header --- */
+.panel-header {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #36373a;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+    position: relative;
+    background-color: #202124;
+}
+
+/* --- Scrollable Content Area --- */
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/* Custom Scrollbar */
+.panel-body::-webkit-scrollbar { width: 6px; }
+.panel-body::-webkit-scrollbar-thumb { background-color: #555; border-radius: 3px; }
+.panel-body::-webkit-scrollbar-track { background-color: transparent; }
+
+/* ================= INFO MODE STYLES ================= */
+
+/* Avatar & Name Section */
+.info-profile {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.info-avatar-large {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    margin-bottom: 12px;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.1);
+}
+
+.info-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+/* Action Buttons (Mute, Pin, Add Group) */
+.info-actions {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.action-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #a0a0a0;
+    font-size: 12px;
+}
+.action-icon-circle {
+    width: 40px;
+    height: 40px;
+    background-color: #303134;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+.action-item:hover .action-icon-circle { background-color: #3e4042; }
+
+/* General Sections (Accordion style) */
+.info-section {
+    padding: 12px 16px;
+    border-top: 8px solid #161719; /* Khoảng cách đậm giữa các section */
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 12px;
+    cursor: pointer;
+}
+
+/* Grid Preview Ảnh */
+.media-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 12px;
+}
+.media-preview-item {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #333;
+}
+.media-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* File & Link List Preview */
+.file-preview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.file-item, .link-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.file-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 10px;
+    flex-shrink: 0;
+    color: white;
+}
+/* File colors based on extension */
+.file-icon.folder { background-color: #ffc107 ; color: #5a4a15; } /* Vàng */
+.file-icon.word { background-color: #0078d4; } /* Xanh word */
+.file-icon.code { background-color: #29b6f6; } /* Xanh code */
+.file-icon.link { background-color: #303134; border: 1px solid #444; }
+
+.item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    overflow: hidden;
+}
+.item-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-meta { font-size: 12px; color: #8e8e8e; }
+
+.btn-view-all {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #303134;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.btn-view-all:hover { background-color: #3e4042; }
+
+/* ================= REPO MODE (KHO LƯU TRỮ) STYLES ================= */
+
+/* Header Repo Specifics */
+.repo-header-left {
+    position: absolute;
+    left: 10px;
+    cursor: pointer;
+    padding: 5px;
+}
+.repo-header-right {
+    position: absolute;
+    right: 15px;
+    font-size: 14px;
+    color: #0068ff;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* Tabs */
+.repo-tabs {
+    display: flex;
+    border-bottom: 1px solid #36373a;
+    background-color: #202124;
+}
+.repo-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #a0a0a0;
+    cursor: pointer;
+    position: relative;
+}
+.repo-tab:hover { color: #e4e6eb; }
+.repo-tab.active { color: #0068ff; }
+.repo-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 20%;
+    width: 60%;
+    height: 2px;
+    background-color: #0068ff;
+}
+
+/* Filters */
+.repo-filters {
+    padding: 10px 15px;
+    background-color: #202124;
+}
+.search-box {
+    display: flex;
+    align-items: center;
+    background-color: #303134;
+    border-radius: 20px;
+    padding: 6px 12px;
+    margin-bottom: 10px;
+}
+.search-box input {
+    background: transparent;
+    border: none;
+    color: white;
+    width: 100%;
+    margin-left: 8px;
+    outline: none;
+}
+.filter-tags {
+    display: flex;
+    gap: 8px;
+}
+.filter-tag {
+    background-color: #303134;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #e4e6eb;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+/* Repo List Group */
+.repo-list-container {
+    padding: 0 16px;
+}
+.date-group-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e4e6eb;
+    margin: 20px 0 10px 0;
+}
+
+/* Grid layout cho Ảnh/Video trong Repo */
+.repo-media-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}

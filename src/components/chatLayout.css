@@ -1,8 +1,8 @@
 .chatLayout {
     height: 100vh;
     display: grid;
-    /* Cột 1: 64px | Cột 2: 320px | Cột 3: phần còn lại */
-    grid-template-columns: 64px 320px 1fr;
+    /* Cột 1: 64px | Cột 2,4: 320px | Cột 3: phần còn lại */
+    grid-template-columns: 64px 320px 1fr 320px;
     background: white;
     color: #1a1a1a;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -27,7 +27,8 @@
 }
 
 .chatLayout__info {
-    background-color: #f4f5f7; /* Phông trắng */
+    background-color: #ffffff; /* Cột cuối màu trắng giống cột 2 */
+    border-left: 1px solid #dbdee1;
     color: #333;
 }
 /* Responsive: Ẩn cột giữa khi màn hình nhỏ */
