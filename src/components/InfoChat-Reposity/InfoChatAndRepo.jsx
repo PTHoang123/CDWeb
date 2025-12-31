@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
     Bell, Pin, Users, Edit2, ChevronDown, ChevronLeft,
     Search, Folder, FileText, FileCode, Link as LinkIcon,
-    MoreHorizontal, Clock
+    MoreHorizontal, Clock, EyeOff, AlertTriangle, Trash2
 } from 'lucide-react';
 import './InfoChatAndRepo.css';
 
@@ -170,13 +170,29 @@ const InfoContent = ({ onOpenRepo }) => {
                 </div>
 
                 {/* Thiết lập bảo mật */}
+                {/* --- THIẾT LẬP BẢO MẬT (Đã bổ sung Tin nhắn tự xóa) --- */}
                 <div className="info-section">
-                    <div className="section-header">
-                        <span>Thiết lập bảo mật</span>
-                        <ChevronDown size={16} />
-                    </div>
-                    <div style={{color: '#aaa', fontSize: 13, display:'flex', alignItems:'center', gap: 10, marginTop: 10}}>
-                        <Clock size={16}/> Tin nhắn tự xóa
+                    <div className="section-header">Thiết lập bảo mật</div>
+                    <div className="setting-list">
+                        {/* Bổ sung mục Tin nhắn tự xóa */}
+                        <div className="setting-item">
+                            <Clock size={20} />
+                            <span style={{ flex: 1 }}>Tin nhắn tự xóa</span>
+                            <span style={{ fontSize: '13px', color: '#7589a3' }}>Tắt</span>
+                        </div>
+
+                        <div className="setting-item">
+                            <EyeOff size={20} />
+                            <span>Ẩn trò chuyện</span>
+                        </div>
+                        <div className="setting-item">
+                            <AlertTriangle size={20} />
+                            <span>Báo xấu</span>
+                        </div>
+                        <div className="setting-item delete">
+                            <Trash2 size={20} />
+                            <span>Xóa lịch sử trò chuyện</span>
+                        </div>
                     </div>
                 </div>
             </div>

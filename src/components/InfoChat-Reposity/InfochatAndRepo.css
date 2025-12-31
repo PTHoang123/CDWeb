@@ -307,3 +307,37 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
 }
+
+/* ================= SETTINGS LIST STYLES ================= */
+.setting-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Khoảng cách giữa icon và chữ */
+    padding: 12px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    font-size: 15px;
+    font-weight: 500;
+    color: #081c36;
+}
+
+/* Hover hiệu ứng chung */
+.setting-item:hover {
+    background-color: #eaedf0;
+}
+
+/* Riêng mục Xóa lịch sử (class delete) */
+.setting-item.delete {
+    color: #d93025; /* Màu đỏ cảnh báo */
+}
+
+.setting-item.delete:hover {
+    background-color: #ffeceb; /* Nền đỏ nhạt khi hover */
+}

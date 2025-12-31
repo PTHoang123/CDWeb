@@ -1,17 +1,3 @@
-/* --- Layout Chính --- */
-.chatWindow {
-  /* 1. Chiếm toàn bộ chiều cao màn hình */
-  height: 100vh;
-  /* 2. Sử dụng Flexbox dọc */
-  display: flex;
-  flex-direction: column;
-  /* 3. Ẩn thanh cuộn của khung bao ngoài (để Header/Footer đứng yên) */
-  overflow: hidden;
-
-  background-color: #f5f6f7;
-  position: relative; /* Để định vị các thành phần con nếu cần */
-}
-
 /* --- Header (Cố định) --- */
 .chatWindow__header {
   height: 64px;
@@ -20,51 +6,83 @@
   background: #ffffff;
   display: flex;
   align-items: center;
-  font-size: 16px;
+  justify-content: space-between; /* Đẩy 2 phần ra 2 đầu */
   color: #081c36;
-
-  /* Quan trọng: Không cho phép Header bị co lại */
   flex-shrink: 0;
 }
 
+/* Phần thông tin tên (Bên trái) */
+.chatWindow__header-info {
+  display: flex;
+  flex-direction: column;
+}
 .chatWindow__title {
   font-weight: 600;
+  font-size: 16px;
+}
+.chatWindow__subtitle {
+  font-size: 12px;
+  color: #7589a3;
+  margin-top: 2px;
 }
 
-/* --- Body (Vùng tin nhắn - Cuộn độc lập) --- */
+/* Phần nút bấm (Bên phải) */
+.chatWindow__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #7589a3;
+  transition: 0.2s;
+}
+
+.header-icon:hover {
+  background-color: #dfe2e7;
+  color: #081c36;
+}
+
+/* --- Các phần khác giữ nguyên --- */
+.chatWindow {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #f5f6f7;
+  position: relative;
+}
+
+/* Copy lại các phần cũ để đảm bảo không bị mất */
 .chatWindow__body {
   padding: 18px 16px;
-
-  /* Quan trọng: Chiếm phần không gian còn lại */
   flex: 1;
-  /* Quan trọng: Tạo thanh cuộn riêng cho vùng này */
   overflow-y: auto;
-  /* Quan trọng: Ngăn flex item bị tràn ra ngoài container */
   min-height: 0;
-
   display: flex;
   flex-direction: column;
   gap: 12px;
   background-color: #e2e5e9;
 }
-
-/* Custom Scrollbar cho vùng chat (Làm đẹp thanh cuộn) */
 .chatWindow__body::-webkit-scrollbar { width: 6px; }
 .chatWindow__body::-webkit-scrollbar-thumb { background-color: #cdd0d5; border-radius: 3px; }
 .chatWindow__body::-webkit-scrollbar-track { background-color: transparent; }
 
-/* --- Footer (Cố định) --- */
 .chatWindow__footer {
   background: #ffffff;
   border-top: 1px solid #d6dbe1;
   display: flex;
   flex-direction: column;
-
-  /* Quan trọng: Không cho phép Footer bị co lại */
   flex-shrink: 0;
 }
 
-/* --- Toolbar (Icon trên ô nhập) --- */
 .chat-toolbar {
   display: flex;
   align-items: center;
@@ -89,7 +107,6 @@
   color: #081c36;
 }
 
-/* --- Composer (Vùng nhập & Nút gửi) --- */
 .chatWindow__composer {
   display: flex;
   align-items: center;
@@ -108,10 +125,7 @@
   padding-right: 80px;
   font-family: inherit;
 }
-
-.chatWindow__input::placeholder {
-  color: #7589a3;
-}
+.chatWindow__input::placeholder { color: #7589a3; }
 
 .chat-input-actions {
   display: flex;
@@ -139,10 +153,5 @@
   border-radius: 4px;
   transition: 0.2s;
 }
-.action-icon-large:hover {
-  background-color: #dfe2e7;
-}
-
-.chatWindow__send {
-  display: none;
-}
+.action-icon-large:hover { background-color: #dfe2e7; }
+.chatWindow__send { display: none; }

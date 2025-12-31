@@ -11,34 +11,39 @@ import { WsProvider } from "./context/WsContext";
 const WS_URL = "wss://chat.longapp.site/chat/chat";
 
 function AppInner() {
-  const [user, setUser] = useState(null);
+    const [user, setUser] = useState(null);
+    // State quản lý việc ẩn/hiện cột thông tin bên phải
+    const [showInfo, setShowInfo] = useState(true);
 
-  // Nếu chưa đăng nhập, trả về trang Login
-  if (!user) {
-    return <Login onLoginSuccess={(userData) => setUser(userData)} />;
-  }
+    // Nếu chưa đăng nhập, trả về trang Login
+    if (!user) {
+        return <Login onLoginSuccess={(userData) => setUser(userData)} />;
+    }
 
-  // Đã đăng nhập thành công
-  return (
-    <ChatLayout
-      navigation={<Sidebar user={user} />}
-      sidebar={<ConversationList />}
-      chat={
-        <ChatWindow
-          title={`Đang chat: ${user.username ?? user.displayName ?? "User"}`}
+    // Đã đăng nhập thành công
+    return (
+        <ChatLayout
+            navigation={<Sidebar user={user} />}
+            sidebar={<ConversationList />}
+            chat={
+                <ChatWindow
+                    title={`Đang chat: ${user.username ?? user.displayName ?? "User"}`}
+                    // Truyền hàm toggle xuống ChatWindow
+                    onToggleInfo={() => setShowInfo(!showInfo)}
+                />
+            }
+            // Nếu showInfo = true thì hiện InfoChat, ngược lại thì null (ẩn)
+            infochat={showInfo ? <InfoChat /> : null}
         />
-      }
-      infochat={<InfoChat />}
-    />
-  );
+    );
 }
 
 function App() {
-  return (
-    <WsProvider url={WS_URL}>
-      <AppInner />
-    </WsProvider>
-  );
+    return (
+        <WsProvider url={WS_URL}>
+            <AppInner />
+        </WsProvider>
+    );
 }
 
 export default App;
