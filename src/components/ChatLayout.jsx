@@ -2,8 +2,10 @@ import React from "react";
 import "./chatLayout.css";
 
 export default function ChatLayout({navigation, infochat ,sidebar, chat, className = ""}) {
+    // Kiểm tra xem có infochat hay không (check null)
+    const hasInfo = !!infochat;
     return (
-        <div className={`chatLayout ${className}`.trim()}>
+        <div className={`chatLayout ${!hasInfo ? 'chatLayout--full' : ''} ${className}`.trim()}>
             {/*  thanh công cụ */}
             <nav className="chatLayout__nav">{navigation}</nav>
             {/* danh sách */}
@@ -11,7 +13,9 @@ export default function ChatLayout({navigation, infochat ,sidebar, chat, classNa
             {/* khung chat */}
             <main className="chatLayout__main">{chat}</main>
             {/*/!* Thông tin hội thoại *!/*/}
-            <aside className="ChatLayout__info">{infochat}</aside>
+            {hasInfo && (
+                <aside className="chatLayout__info">{infochat}</aside>
+            )}
         </div>
     );
 }
