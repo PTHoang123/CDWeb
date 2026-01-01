@@ -10,17 +10,6 @@
     animation: fadeInOverlay 0.4s ease-out forwards;
 }
 
-@keyframes zoomInModal {
-    from {
-        opacity: 0;
-        transform: scale(0.8); /* Bắt đầu hơi nhỏ */
-    }
-    to {
-        opacity: 1;
-        transform: scale(1); /* Phóng lên kích thước chuẩn */
-    }
-}
-
 .modal-container {
     width: 400px;
     background: #242526; /* Màu nền Dark của Zalo */
@@ -28,9 +17,19 @@
     color: #e4e6eb;
     overflow: hidden;
 
-    animation: zoomInModal 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: zoomInModal 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+@keyframes zoomInModal {
+    from {
+        opacity: 0;
+        transform: scale(0.2); /* Bắt đầu hơi nhỏ */
+    }
+    to {
+        opacity: 1;
+        transform: scale(1); /* Phóng lên kích thước chuẩn */
+    }
+}
 
 .modal-header {
     padding: 12px 16px;
@@ -205,24 +204,9 @@
     min-height: 400px; /* Giữ khung không bị nhảy kích thước */
 }
 
-.profile-view, .profile-edit {
-    animation: fadeIn 0.3s ease-in-out; /* Hiệu ứng hiện dần lên */
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(5px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 /* Thêm hiệu ứng hover cho các nút bấm để bớt "khựng" cảm giác */
 .btn-update-main, .btn-huy, .btn-capnhat {
-    transition: all 0.2s ease;
+    transition: all 0.5s ease;
 }
 
 .btn-update-main:active, .btn-capnhat:active {
