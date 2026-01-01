@@ -24,14 +24,19 @@ const MOCK_PREVIEW_FILES = [
     { name: "Snake game", size: "10.01 KB", date: "15/10/2025", type: "folder" },
     { name: "Báo cáo.docx", size: "2.5 MB", date: "14/10/2025", type: "word" },
     { name: "Source_code.zip", size: "15 MB", date: "12/10/2025", type: "zip" },
-    { name: "Old_File.pdf", size: "1 MB", date: "01/10/2025", type: "pdf" }, // File thứ 4 (Sẽ bị ẩn)
+    { name: "Old_File.pdf", size: "1 MB", date: "01/10/2025", type: "pdf" },
+    { name: "Bang_luong_T12.xlsx", size: "1.1 MB", type: "excel" },
 ];
 
 const MOCK_PREVIEW_LINKS = [
     { title: "ThucHanh05 - Google Drive", url: "drive.google.com" },
     { title: "Tài liệu ReactJS", url: "react.dev" },
     { title: "Thiết kế Figma", url: "figma.com" },
-    { title: "Link cũ hơn", url: "google.com" }, // Link thứ 4 (Sẽ bị ẩn)
+    { title: "Link cũ hơn", url: "google.com" },
+    { title: "Github Repository", url: "github.com" },
+    { title: "Thiết kế Figma Project A", url: "figma.com" },
+    { title: "Tài liệu ReactJS - Trang chủ", url: "react.dev" },
+    { title: "Video hướng dẫn Youtube", url: "youtube.com" },
 ];
 
 // --- MOCK DATA CHI TIẾT CHO KHO LƯU TRỮ (Repo Mode - Giữ nguyên đầy đủ) ---
@@ -56,46 +61,30 @@ const REPO_MEDIA_GROUPS = [
 const REPO_FILE_GROUPS = [
     {
         date: "Mới nhất",
-        items: [
-            { name: "Snake game", size: "10.01 KB", type: "folder" },
-            { name: "Báo cáo_Final.docx", size: "2.5 MB", type: "word" },
-        ]
+        items: MOCK_PREVIEW_FILES.slice(0, 1)
     },
     {
         date: "28/12/2025",
-        items: [
-            { name: "Source_code_v1.zip", size: "15 MB", type: "zip" },
-            { name: "Design_System.pdf", size: "5.2 MB", type: "pdf" },
-        ]
+        items: MOCK_PREVIEW_FILES.slice(1, 2)
     },
     {
         date: "20/12/2025",
-        items: [
-            { name: "Bang_luong_T12.xlsx", size: "1.1 MB", type: "excel" },
-        ]
+        items: MOCK_PREVIEW_FILES.slice(2, 5)
     }
 ];
 
 const REPO_LINK_GROUPS = [
     {
         date: "Mới nhất",
-        items: [
-            { title: "ThucHanh05 - Google Drive", url: "drive.google.com" },
-        ]
+        items: MOCK_PREVIEW_LINKS.slice(0, 1)
     },
     {
         date: "28/12/2025",
-        items: [
-            { title: "Tài liệu ReactJS - Trang chủ", url: "react.dev" },
-            { title: "Video hướng dẫn Youtube", url: "youtube.com" },
-        ]
+        items: MOCK_PREVIEW_LINKS.slice(1, 6)
     },
     {
         date: "20/12/2025",
-        items: [
-            { title: "Github Repository", url: "github.com" },
-            { title: "Thiết kế Figma Project A", url: "figma.com" },
-        ]
+        items: MOCK_PREVIEW_LINKS.slice(6, 8)
     }
 ];
 

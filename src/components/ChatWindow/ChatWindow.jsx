@@ -3,7 +3,7 @@ import MessageBubble from "./MessageBubble.jsx";
 import {
     Smile, Image as ImageIcon, Paperclip, Contact, Scan,
     Type, Zap, CreditCard, MoreHorizontal, ThumbsUp, Send,
-    Search, PanelRightClose
+    Search, PanelRightClose, Sticker
 } from 'lucide-react';
 import "./chatWindow.css";
 
@@ -92,7 +92,7 @@ export default function ChatWindow({ title = "Chat", initialMessages, onToggleIn
 
             <footer className="chatWindow__footer">
                 <div className="chat-toolbar">
-                    <div className="toolbar-icon" title="Gửi Sticker"><Smile size={20} /></div>
+                    <div className="toolbar-icon" title="Gửi Sticker"><Sticker size={20} /></div>
                     <div className="toolbar-icon" title="Gửi Ảnh"><ImageIcon size={20} /></div>
                     <div className="toolbar-icon" title="Đính kèm File"><Paperclip size={20} /></div>
                     <div className="toolbar-icon" title="Gửi Danh thiếp"><Contact size={20} /></div>
