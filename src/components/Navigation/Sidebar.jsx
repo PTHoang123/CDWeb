@@ -86,7 +86,7 @@ const Sidebar = () => {
                 <div className="sidebar-dropdown settings-menu" ref={settingsRef}>
 
                     <div className="dropdown-item" onMouseEnter={() => setActiveSubMenu(null)}>
-                        <div className="item-label"><User size={18} /> <span>Thông tin tài khoản</span></div>
+                        <div className="item-label" onClick={() => { setShowProfileModal(true); setShowDropdown(false); }}><User size={18} /> <span>Thông tin tài khoản</span></div>
                     </div>
 
                     <div className="dropdown-item" onMouseEnter={() => setActiveSubMenu(null)}>
