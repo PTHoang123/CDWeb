@@ -58,6 +58,7 @@
     gap: 8px;
     margin-bottom: 5px;
 }
+
 /* --- Sidebar & Dropdown --- */
 .sidebar-nav {
     width: 64px;
@@ -74,15 +75,15 @@
 
 .sidebar-dropdown {
     position: absolute;
-    left: 70px;
-    top: 20px;
-    width: 200px;
-    background-color: #242526; /* Dark background */
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    left: 70px; /* Cách lề trái để không đè lên sidebar */
+    width: 220px; /* Rộng hơn chút cho giống Zalo */
+    background-color: #1f2021; /* Màu nền tối giống Zalo */
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
     color: #e4e6eb;
     padding: 8px 0;
     z-index: 999;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .dropdown-header { padding: 10px 15px; font-weight: 600; font-size: 16px; }
@@ -97,3 +98,64 @@
 }
 .dropdown-item:hover { background-color: #3a3b3c; }
 .logout { color: #f35353; }
+
+.profile-menu {
+    top: 20px;
+}
+
+/* Menu Settings nằm ở dưới (căn theo đáy) */
+.settings-menu {
+    bottom: 20px; /* Cách đáy 20px */
+}
+
+/* --- ITEM STYLING (Giống Zalo) --- */
+.dropdown-item {
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #dcdcdc;
+    transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: #2f3031;
+}
+
+.item-label {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Khoảng cách giữa icon và chữ */
+}
+
+.arrow-icon {
+    color: #888;
+}
+
+/* --- DIVIDER --- */
+.dropdown-divider {
+    height: 1px;
+    background: #3e4042;
+    margin: 4px 0;
+}
+
+/* --- LOGOUT --- */
+.dropdown-item.logout {
+    color: #ff4d4f; /* Màu đỏ cho nút đăng xuất */
+}
+
+.dropdown-item.logout:hover {
+    background-color: #3a2525; /* Nền đỏ nhạt khi hover */
+}
+
+/* --- ANIMATION NHẸ --- */
+.sidebar-dropdown {
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
