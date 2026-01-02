@@ -3,6 +3,7 @@ import {
     MessageSquare, Contact, CheckSquare, Cloud, Settings, Monitor, ExternalLink,
     User, Database, Globe, HelpCircle, ChevronRight, Check
 } from 'lucide-react';
+import { Emoji, EmojiStyle } from 'emoji-picker-react';
 import UserProfileModal from './UserProfileModal';
 import './sidebar.css';
 
@@ -85,7 +86,7 @@ const Sidebar = () => {
                 <div className="sidebar-dropdown settings-menu" ref={settingsRef}>
 
                     <div className="dropdown-item" onMouseEnter={() => setActiveSubMenu(null)}>
-                        <div className="item-label" onClick={() => { setShowProfileModal(true); setShowDropdown(false); }}><User size={18} /> <span>Thông tin tài khoản</span></div>
+                        <div className="item-label"><User size={18} /> <span>Thông tin tài khoản</span></div>
                     </div>
 
                     <div className="dropdown-item" onMouseEnter={() => setActiveSubMenu(null)}>
@@ -133,23 +134,26 @@ const Sidebar = () => {
                             <div className="sub-dropdown">
                                 <div className="dropdown-item" onClick={() => setCurrentLang('vi')}>
                                     <div className="item-label">
-                                        <img
-                                            src="https://flagcdn.com/w40/vn.png"
-                                            alt="Vietnam Flag"
-                                            className="flag-icon"
+                                        {/* 2. Thay thế thẻ img bằng thẻ Emoji */}
+                                        <Emoji
+                                            unified="1f1fb-1f1f3" // Mã của cờ Việt Nam
+                                            size={22}
+                                            emojiStyle={EmojiStyle.APPLE} // Style Apple trông đẹp và bóng bẩy nhất (giống Zalo)
                                         />
-                                        <span> Tiếng Việt</span>
+                                        <span style={{marginLeft: '8px'}}>Tiếng Việt</span>
                                     </div>
                                     {currentLang === 'vi' && <Check size={16} color="#0068ff" />}
                                 </div>
+
                                 <div className="dropdown-item" onClick={() => setCurrentLang('en')}>
                                     <div className="item-label">
-                                        <img
-                                            src="https://flagcdn.com/w40/us.png"
-                                            alt="US Flag"
-                                            className="flag-icon"
+                                        {/* Thay thế thẻ img bằng thẻ Emoji */}
+                                        <Emoji
+                                            unified="1f1fa-1f1f8" // Mã của cờ Mỹ
+                                            size={22}
+                                            emojiStyle={EmojiStyle.APPLE}
                                         />
-                                        <span> English</span>
+                                        <span style={{marginLeft: '8px'}}>English</span>
                                     </div>
                                     {currentLang === 'en' && <Check size={16} color="#0068ff" />}
                                 </div>
