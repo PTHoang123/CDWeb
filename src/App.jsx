@@ -12,28 +12,30 @@ const WS_URL = "wss://chat.longapp.site/chat/chat";
 
 function AppInner() {
     const [user, setUser] = useState(null);
-    // State quản lý việc ẩn/hiện cột thông tin bên phải
     const [showInfo, setShowInfo] = useState(true);
 
-    // Nếu chưa đăng nhập, trả về trang Login
     if (!user) {
         return <Login onLoginSuccess={(userData) => setUser(userData)} />;
     }
 
-    // Đã đăng nhập thành công
+    // LOGIC HIỂN THỊ TÊN: Ưu tiên displayName (Tên Google) -> username (Nick/Email)
+    const displayName = user.displayName || user.username || "User";
+
     return (
         <ChatLayout
             navigation={<Sidebar user={user} />}
             sidebar={<ConversationList />}
             chat={
                 <ChatWindow
-                    title={`Đang chat: ${user.username ?? user.displayName ?? "User"}`}
-                    // Truyền hàm toggle xuống ChatWindow
+                    // Sửa dòng này:
+                    title={`Đang chat: ${displayName}`}
                     onToggleInfo={() => setShowInfo(!showInfo)}
                 />
             }
-            // Nếu showInfo = true thì hiện InfoChat, ngược lại thì null (ẩn)
-            infochat={showInfo ? <InfoChat /> : null}
+            infochat={showInfo ?
+                <InfoChat
+                    user={user}
+                    currentName={displayName} /> : null}
         />
     );
 }

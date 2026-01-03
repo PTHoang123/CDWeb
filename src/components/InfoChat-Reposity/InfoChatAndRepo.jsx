@@ -88,7 +88,7 @@ const REPO_LINK_GROUPS = [
     }
 ];
 
-export default function InfoChatAndRepo() {
+export default function InfoChatAndRepo({ user, currentName }) {
     const [activeTab, setActiveTab] = useState('info');
     const [activeRepoTab, setActiveRepoTab] = useState('media');
 
@@ -110,12 +110,12 @@ export default function InfoChatAndRepo() {
         <>
             <div className="info-profile">
                 <img
-                    src="https://img.tripi.vn/cdn-cgi/image/width=700,height=700/https://gcs.tripi.vn/public-tripi/tripi-feed/img/482752udT/anh-mo-ta.png"
+                    src={user?.avatar || `https://ui-avatars.com/api/?name=${currentName}&size=128`}
                     alt="avatar"
                     className="info-avatar-large"
                 />
                 <div className="info-name-row">
-                    <span>Đức Hải</span>
+                    <span>{currentName}</span>
                     <Edit2 size={16} color="#7589a3" style={{ cursor: 'pointer' }} />
                 </div>
 

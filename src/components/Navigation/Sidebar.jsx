@@ -7,18 +7,14 @@ import { Emoji, EmojiStyle } from 'emoji-picker-react';
 import UserProfileModal from './UserProfileModal';
 import './sidebar.css';
 
-const Sidebar = () => {
+const Sidebar = ({ user }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+
+    // Các state menu cũ giữ nguyên
     const [showSettingDropdown, setShowSettingDropdown] = useState(false);
-
-    // State quản lý menu con đang active: 'data', 'language', 'support', hoặc null
     const [activeSubMenu, setActiveSubMenu] = useState(null);
-
-    // State quản lý ngôn ngữ đang chọn
-    const [currentLang, setCurrentLang] = useState('vi'); // 'vi' or 'en'
-
-    // State quản lý menu cấp 3 (cho phần "Khác" trong Dữ liệu)
+    const [currentLang, setCurrentLang] = useState('vi');
     const [showDataOther, setShowDataOther] = useState(false);
 
     const profileRef = useRef(null);
@@ -47,12 +43,17 @@ const Sidebar = () => {
         setActiveSubMenu(null); // Reset submenu khi mở lại
     }
 
+    // --- XỬ LÝ DỮ LIỆU USER ---
+    // Nếu user.avatar rỗng thì dùng ảnh tạo tự động theo tên
+    const userAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || "User"}&background=random`;
+    const userName = user?.displayName || user?.username || "User";
+
     return (
         <div style={{ position: 'relative', display: 'flex' }}>
             {/* --- SIDEBAR NAV (Giữ nguyên) --- */}
             <div className="sidebar-nav">
                 <div className="user-profile-avatar" onClick={() => {setShowDropdown(!showDropdown); setShowSettingDropdown(false);}}>
-                    <img src="https://img.tripi.vn/cdn-cgi/image/width=700,height=700/https://gcs.tripi.vn/public-tripi/tripi-feed/img/482752udT/anh-mo-ta.png" alt="profile" />
+                    <img src={userAvatar} alt="User" />
                 </div>
                 <div className="nav-menu-items">
                     <div className="nav-item active"><MessageSquare size={26} /></div>
@@ -71,7 +72,7 @@ const Sidebar = () => {
             {/* --- PROFILE MENU (Giữ nguyên) --- */}
             {showDropdown && (
                 <div className="sidebar-dropdown profile-menu" ref={profileRef}>
-                    <div className="dropdown-header">Đức Hải</div>
+                    <div className="dropdown-header">{userName}</div>
                     <div className="dropdown-divider"></div>
                     <div className="dropdown-item"><span>Nâng cấp tài khoản</span><ExternalLink size={14} /></div>
                     <div className="dropdown-item" onClick={() => { setShowProfileModal(true); setShowDropdown(false); }}>Hồ sơ của bạn</div>
@@ -134,7 +135,6 @@ const Sidebar = () => {
                             <div className="sub-dropdown">
                                 <div className="dropdown-item" onClick={() => setCurrentLang('vi')}>
                                     <div className="item-label">
-                                        {/* 2. Thay thế thẻ img bằng thẻ Emoji */}
                                         <Emoji
                                             unified="1f1fb-1f1f3" // Mã của cờ Việt Nam
                                             size={22}
@@ -147,7 +147,6 @@ const Sidebar = () => {
 
                                 <div className="dropdown-item" onClick={() => setCurrentLang('en')}>
                                     <div className="item-label">
-                                        {/* Thay thế thẻ img bằng thẻ Emoji */}
                                         <Emoji
                                             unified="1f1fa-1f1f8" // Mã của cờ Mỹ
                                             size={22}
