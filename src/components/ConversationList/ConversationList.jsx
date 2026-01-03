@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, UserPlus, Users } from "lucide-react";
 import "./conversationList.css";
 // Import hook useWs để giao tiếp với Server
-import useWs from "../../context/useWs"; // Đảm bảo đường dẫn đúng với cấu trúc thư mục của bạn
+import useWs from "../../context/useWs";
 
 const MOCK_CONVERSATIONS = [
     { id: 1, name: "Huy lofi", avatar: "https://ui-avatars.com/api/?name=Huy", msg: "Mày bị ngu à", time: "20:28" },

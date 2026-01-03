@@ -156,6 +156,11 @@ const Login = ({ onLoginSuccess }) => {
                 opacity: googleLoading ? 0.7 : 1
               }}
           >
+            <img
+                src="https://imagepng.org/wp-content/uploads/2019/08/google-icon.png"
+                alt="Google Logo"
+                style={{ width: "20px", height: "20px" }}
+            />
             {googleLoading ? "Đang xử lý..." : "Tiếp tục với Google"}
           </button>
 
