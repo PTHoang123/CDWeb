@@ -5,7 +5,7 @@ import { auth, googleProvider } from "../firebase";
 import useWs from "../context/useWs";
 import { loginOverWs } from "../api/wsAuth";
 
-const Login = ({ onLoginSuccess }) => {
+const Login = ({ onLoginSuccess, onGoRegister }) => {
   const { client, connected } = useWs();
 
   const [username, setUsername] = useState("");
@@ -56,9 +56,15 @@ const Login = ({ onLoginSuccess }) => {
       const cred = await signInWithPopup(auth, googleProvider);
       const user = cred.user;
 
-      // You can store token if needed
       const idToken = await user.getIdToken();
       localStorage.setItem("firebase_id_token", idToken);
+
+      // IMPORTANT:
+      // Google login is only Firebase Auth. Your WS server still needs a WS username.
+      // Strategy (simple): let Google login through Firebase, then use email prefix as suggested WS username.
+      const wsUsernameSuggestion = (
+        user.email?.split("@")[0] || user.uid
+      ).slice(0, 20);
 
       onLoginSuccess({
         provider: "google",
@@ -66,9 +72,9 @@ const Login = ({ onLoginSuccess }) => {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
+        wsUsernameSuggestion,
       });
     } catch (err) {
-      // Common cases: popup closed, unauthorized domain, config missing
       setError(err?.message || "Google login failed");
     } finally {
       setGoogleLoading(false);
@@ -84,10 +90,17 @@ const Login = ({ onLoginSuccess }) => {
         <div
           style={{
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             marginBottom: 8,
           }}
         >
+          <button
+            type="button"
+            onClick={onGoRegister}
+            style={{ cursor: "pointer" }}
+          >
+            Create account
+          </button>
           <span style={{ fontSize: 12, opacity: 0.7 }}>
             WS: {connected ? "online" : "connecting..."}
           </span>
