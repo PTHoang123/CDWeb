@@ -1,5 +1,4 @@
 // WebSocket-based authentication using the shared WsClient
-// Protocol matches your current `loginWithWS` in `src/api/auth.js`
 
 export async function loginOverWs(
   client,
@@ -29,7 +28,6 @@ export async function loginOverWs(
     }, timeoutMs);
 
     const off = client.on("json", (response) => {
-      // Expect: { status: 'success', event: 'RE_LOGIN', data: {...} }
       if (response?.event !== "RE_LOGIN") return;
 
       clearTimeout(timer);
@@ -38,7 +36,10 @@ export async function loginOverWs(
       off();
 
       if (response.status === "success") {
-        resolve(response.data);
+        resolve({
+          username,
+          RE_LOGIN_CODE: response?.data?.RE_LOGIN_CODE,
+        });
       } else {
         reject(new Error(response.mes || "Đăng nhập thất bại"));
       }
