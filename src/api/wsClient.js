@@ -12,6 +12,9 @@ export function createWsClient(
   let attempt = 0;
   let openPromiseResolve = null;
 
+  // Prevent StrictMode mount/unmount during initial connect
+  let isConnecting = false;
+
   const listeners = {
     open: new Set(),
     close: new Set(),
@@ -44,6 +47,7 @@ export function createWsClient(
 
   function connect() {
     manualClose = false;
+    isConnecting = true;
     ws = new WebSocket(url);
 
     const openPromise = new Promise((resolve) => {
@@ -51,6 +55,7 @@ export function createWsClient(
     });
 
     ws.onopen = () => {
+      isConnecting = false;
       attempt = 0;
       openPromiseResolve?.();
       emit("open");
@@ -71,6 +76,7 @@ export function createWsClient(
     };
 
     ws.onclose = (event) => {
+      isConnecting = false;
       emit("close", event);
 
       // Only auto-reconnect if it wasn't closed manually
@@ -88,6 +94,13 @@ export function createWsClient(
   }
 
   function close(code = 1000, reason = "") {
+    // In React StrictMode dev, effects mount/unmount twice.
+    // Avoid force-closing during the initial opening handshake.
+    if (isConnecting) {
+      manualClose = false;
+      return;
+    }
+
     manualClose = true;
     ws?.close(code, reason);
   }
@@ -100,6 +113,25 @@ export function createWsClient(
     if (isOpen()) return Promise.resolve();
     // if not created yet, create one
     if (!ws || ws.readyState === WebSocket.CLOSED) return connect();
+
+    // if it's currently connecting, wait for open
+    if (ws.readyState === WebSocket.CONNECTING) {
+      return new Promise((resolve, reject) => {
+        const h = () => {
+          off("open", h);
+          off("close", hc);
+          resolve();
+        };
+        const hc = (evt) => {
+          off("open", h);
+          off("close", hc);
+          reject(new Error(evt?.reason || "WebSocket closed before opening"));
+        };
+        on("open", h);
+        on("close", hc);
+      });
+    }
+
     // otherwise wait on next open
     return new Promise((resolve, reject) => {
       const h = () => {
