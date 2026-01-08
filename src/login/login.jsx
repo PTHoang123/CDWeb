@@ -5,18 +5,16 @@ import { auth, googleProvider } from "../firebase";
 import useWs from "../context/useWs";
 import { loginOverWs } from "../api/wsAuth";
 
-const Login = ({ onLoginSuccess }) => {
+const Login = ({ onLoginSuccess, onGoRegister }) => {
   const { client, connected } = useWs();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // State riêng cho nút Google để không ảnh hưởng form chính
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Danh sách tài khoản mẫu
+  // Danh sách tài khoản mẫu theo yêu cầu của bạn
   const demoAccounts = [
     { name: "Đức Hải", user: "duchai", pass: "12345" },
     { name: "Tiến Hoàng", user: "tienhoang", pass: "12345" },
@@ -24,7 +22,6 @@ const Login = ({ onLoginSuccess }) => {
     { name: "Giảng viên", user: "long", pass: "12345" },
   ];
 
-  // --- HÀM XỬ LÝ ĐĂNG NHẬP THƯỜNG ---
   const handleSubmit = async (e, autoUser = null, autoPass = null) => {
     if (e) e.preventDefault();
     setLoading(true);
@@ -37,8 +34,10 @@ const Login = ({ onLoginSuccess }) => {
       // Gọi hàm đăng nhập qua WS
       const res = await loginOverWs(client, finalUser, finalPass);
 
+      // QUAN TRỌNG: Kiểm tra res có dữ liệu không
       if (res) {
-        onLoginSuccess(res);
+        console.log("Dữ liệu User nhận được:", res);
+        onLoginSuccess(res); // Lúc này App.jsx mới nhận được user và chuyển trang
       } else {
         setError("Server trả về dữ liệu trống");
       }
@@ -49,167 +48,143 @@ const Login = ({ onLoginSuccess }) => {
     }
   };
 
-  // --- HÀM XỬ LÝ ĐĂNG NHẬP GOOGLE (Cải tiến) ---
   const handleGoogleLogin = async () => {
-    // Reset lỗi cũ
-    setError("");
     setGoogleLoading(true);
+    setError("");
 
     try {
-      // 1. Đăng nhập qua Firebase (Google) trước
       const cred = await signInWithPopup(auth, googleProvider);
-      const googleUser = cred.user; // Lấy được thông tin Google
+      const user = cred.user;
 
-      // Chuẩn bị dữ liệu user mặc định từ Google
-      let finalUserData = {
-        id: googleUser.uid, // Dùng tạm ID của google
-        username: googleUser.email,
-        displayName: googleUser.displayName || googleUser.email,
-        avatar: googleUser.photoURL,
-        email: googleUser.email
-      };
+      const idToken = await user.getIdToken();
+      localStorage.setItem("firebase_id_token", idToken);
 
-      // 2. Nếu có kết nối WS, cố gắng đồng bộ để người khác tìm kiếm được
-      if (connected && client) {
-        try {
-          const GOOGLE_DEFAULT_PASS = "GoogleLogin@123";
-          const email = googleUser.email;
+      // IMPORTANT:
+      // Google login is only Firebase Auth. Your WS server still needs a WS username.
+      // Strategy (simple): let Google login through Firebase, then use email prefix as suggested WS username.
+      const wsUsernameSuggestion = (
+        user.email?.split("@")[0] || user.uid
+      ).slice(0, 20);
 
-          // Bước 2a: Gửi lệnh Đăng ký (Fire & Forget - không chờ kqua)
-          // Mục đích: Nếu chưa có thì tạo mới, có rồi thì thôi.
-          client.sendJson({
-            action: "onchat",
-            data: {
-              event: "REGISTER",
-              data: { user: email, pass: GOOGLE_DEFAULT_PASS }
-            }
-          }).catch(e => console.warn("Lỗi gửi lệnh Register:", e));
-
-          // Bước 2b: Chờ xíu cho Server xử lý (500ms)
-          await new Promise(r => setTimeout(r, 500));
-
-          // Bước 2c: Thử Đăng nhập vào Server Chat
-          const wsRes = await loginOverWs(client, email, GOOGLE_DEFAULT_PASS, { timeoutMs: 3000 });
-
-          // Nếu đăng nhập WS thành công, dùng data chuẩn từ Server Chat
-          if (wsRes) {
-            console.log("Đồng bộ Server Chat thành công!");
-            finalUserData = {
-              ...wsRes,
-              // Ưu tiên hiển thị Avatar/Tên từ Google cho đẹp nếu Server chưa có
-              avatar: googleUser.photoURL || wsRes.avatar,
-              displayName: googleUser.displayName || wsRes.username
-            };
-          }
-        } catch (wsErr) {
-          // Nếu lỗi kết nối Server Chat (do sai pass cũ, do server lag...)
-          // TA VẪN CHO ĐĂNG NHẬP (Fallback) để không chặn người dùng
-          console.warn("Không thể login vào Chat Server, dùng chế độ Offline:", wsErr);
-        }
-      }
-
-      // 3. Hoàn tất đăng nhập
-      onLoginSuccess(finalUserData);
-
+      onLoginSuccess({
+        provider: "google",
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        wsUsernameSuggestion,
+      });
     } catch (err) {
-      console.error("Lỗi Google Login:", err);
-      // Chỉ hiện lỗi nếu thất bại ngay từ bước Firebase (bước quan trọng nhất)
-      if (err.code) {
-        setError("Hủy đăng nhập hoặc lỗi Google.");
-      }
+      // Common cases: popup closed, unauthorized domain, config missing
+      setError(err?.message || "Google login failed");
     } finally {
-      // Luôn luôn tắt loading để nút bấm hoạt động lại được
       setGoogleLoading(false);
     }
   };
 
   return (
-      <div className="login-body-wrapper">
-        <div className="login-container">
-          <div className="app-title">Chatify</div>
-          <div className="subtitle">Chọn tài khoản mẫu hoặc nhập tay</div>
+    <div className="login-body-wrapper">
+      <div className="login-container">
+        <div className="app-title">Chatify</div>
+        <div className="subtitle">Chọn tài khoản mẫu hoặc nhập tay</div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-          <span style={{ fontSize: 12, opacity: 0.7 }}>
-            WS: {connected ? <span style={{color: '#4caf50'}}>Online</span> : <span style={{color: 'orange'}}>Connecting...</span>}
-          </span>
-          </div>
-
-          {/* Google login */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: 8,
+          }}
+        >
           <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={googleLoading || loading} // Chỉ disable khi đang xử lý
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,.12)",
-                background: "rgba(255,255,255,.08)",
-                color: "inherit",
-                cursor: googleLoading ? "wait" : "pointer",
-                marginBottom: 12,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "10px",
-                opacity: googleLoading ? 0.7 : 1
-              }}
+            type="button"
+            onClick={onGoRegister}
+            style={{ cursor: "pointer" }}
           >
-            <img
-                src="https://imagepng.org/wp-content/uploads/2019/08/google-icon.png"
-                alt="Google Logo"
-                style={{ width: "20px", height: "20px" }}
-            />
-            {googleLoading ? "Đang xử lý..." : "Tiếp tục với Google"}
+            Create account
           </button>
-
-          {/* Khu vực nút đăng nhập nhanh */}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "15px", flexWrap: "wrap" }}>
-            {demoAccounts.map((acc) => (
-                <button
-                    key={acc.user}
-                    type="button"
-                    onClick={() => handleSubmit(null, acc.user, acc.pass)}
-                    style={{ padding: "4px 8px", fontSize: "12px", cursor: "pointer" }}
-                >
-                  {acc.name}
-                </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            {error && (
-                <div style={{ color: "#ff4d4f", fontSize: "13px", marginBottom: "10px", background: 'rgba(255,0,0,0.1)', padding: '5px', borderRadius: '4px' }}>
-                  {error}
-                </div>
-            )}
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Nhập username"
-                  required
-              />
-            </div>
-            <div className="form-group">
-              <label>Mật khẩu</label>
-              <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu"
-                  required
-              />
-            </div>
-            <button type="submit" className="login-btn" disabled={loading}>
-              {loading ? "Đang kết nối..." : "Đăng nhập"}
-            </button>
-          </form>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>
+            WS: {connected ? "online" : "connecting..."}
+          </span>
         </div>
+
+        {/* Google login */}
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={googleLoading || loading}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,.12)",
+            background: "rgba(255,255,255,.08)",
+            color: "inherit",
+            cursor: "pointer",
+            marginBottom: 12,
+          }}
+        >
+          {googleLoading ? "Signing in..." : "Continue with Google"}
+        </button>
+
+        {/* Khu vực nút đăng nhập nhanh */}
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            marginBottom: "15px",
+            flexWrap: "wrap",
+          }}
+        >
+          {demoAccounts.map((acc) => (
+            <button
+              key={acc.user}
+              type="button"
+              onClick={() => handleSubmit(null, acc.user, acc.pass)}
+              style={{
+                padding: "4px 8px",
+                fontSize: "12px",
+                cursor: "pointer",
+              }}
+            >
+              {acc.name}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          {error && (
+            <div
+              style={{ color: "red", fontSize: "13px", marginBottom: "10px" }}
+            >
+              {error}
+            </div>
+          )}
+          <div className="form-group">
+            <label>Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Nhập username"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Mật khẩu</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Nhập mật khẩu"
+              required
+            />
+          </div>
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? "Đang kết nối..." : "Đăng nhập"}
+          </button>
+        </form>
       </div>
+    </div>
   );
 };
 
