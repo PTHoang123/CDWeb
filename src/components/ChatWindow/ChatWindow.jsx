@@ -52,6 +52,117 @@ export default function ChatWindow({
       ]
   );
 
+  // --- States quản lý hiển thị Popup ---
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false); // Menu chọn File/Folder
+
+  // --- Refs cho Input File ---
+  const imageInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
+
+  // Ref để click ra ngoài thì đóng popup (tùy chọn nâng cao)
+  const wrapperRef = useRef(null);
+
+  // --- XỬ LÝ EMOJI ---
+  const handleEmojiClick = (emojiObject) => {
+    setText((prev) => prev + emojiObject.emoji);
+    // Không đóng picker để chọn tiếp, hoặc đóng thì thêm: setShowEmojiPicker(false);
+  };
+
+  // --- XỬ LÝ STICKER ---
+  const handleSendSticker = (url) => {
+    // Gửi sticker coi như gửi một tin nhắn dạng ảnh/sticker
+    const newMessage = {
+      id: Date.now().toString(),
+      side: "right",
+      type: "sticker", // Đánh dấu là sticker
+      content: url,
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages([...messages, newMessage]);
+    setShowStickerPicker(false);
+  };
+
+  // --- XỬ LÝ FILE / ẢNH / FOLDER ---
+
+  // 1. Chọn Ảnh
+  // Tìm đến hàm handleImageSelect và thay thế toàn bộ bằng đoạn này:
+  const handleImageSelect = (e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // Lặp qua từng file ảnh được chọn
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+
+        // Khi đọc xong file, nó sẽ chạy hàm này
+        reader.onload = (event) => {
+          const base64Image = event.target.result; // Đây là chuỗi mã hóa của ảnh
+
+          // Tạo tin nhắn mới dạng ảnh
+          const newMessage = {
+            id: Date.now().toString() + Math.random(),
+            side: "right", // Tin nhắn của mình nằm bên phải
+            type: "image", // Đánh dấu là ảnh để hiển thị thẻ img
+            content: base64Image, // Nội dung chính là cái mã ảnh
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          };
+
+          // Cập nhật vào danh sách tin nhắn để hiện lên màn hình ngay
+          setMessages((prev) => [...prev, newMessage]);
+
+          // (Nếu sau này bạn muốn gửi qua WebSocket thì gọi hàm gửi ở đây)
+          // wsSendChat(client, ..., "image", base64Image);
+        };
+
+        // Bắt đầu đọc file
+        reader.readAsDataURL(file);
+      });
+    }
+    // Reset input để chọn lại được cùng 1 ảnh nếu muốn
+    e.target.value = null;
+  };
+
+  // 2. Chọn File thường
+  const handleFileSelect = (e) => {
+    const files = e.target.files;
+    if (files.length > 0) {
+      console.log("Đã chọn file:", files);
+      alert(`Đã chọn file: ${files[0].name}`);
+    }
+    setShowAttachMenu(false);
+  };
+
+  // 3. Chọn Folder
+  const handleFolderSelect = (e) => {
+    const files = e.target.files; // Trả về list tất cả file trong folder
+    if (files.length > 0) {
+      console.log("Đã chọn folder, tổng số file:", files.length);
+      alert(`Đã chọn folder chứa ${files.length} files.`);
+    }
+    setShowAttachMenu(false);
+  };
+
+  // --- UI RENDER HELPERS ---
+  const toggleEmoji = () => {
+    setShowEmojiPicker(!showEmojiPicker);
+    setShowStickerPicker(false);
+    setShowAttachMenu(false);
+  };
+
+  const toggleSticker = () => {
+    setShowStickerPicker(!showStickerPicker);
+    setShowEmojiPicker(false);
+    setShowAttachMenu(false);
+  };
+
+  const toggleAttachMenu = () => {
+    setShowAttachMenu(!showAttachMenu);
+    setShowEmojiPicker(false);
+    setShowStickerPicker(false);
+  };
+
   // 2. Tạo ref để tham chiếu đến cuối danh sách chat
   const messagesEndRef = useRef(null);
 
@@ -114,6 +225,7 @@ export default function ChatWindow({
       },
     ]);
     setText("");
+    setShowEmojiPicker(false);
 
     // send using your protocol
     try {
@@ -139,6 +251,13 @@ export default function ChatWindow({
       setMessages((prev) => [...prev, next]);
     }
   };
+
+  const MOCK_STICKERS = [
+    "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46366&size=130",
+    "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46367&size=130",
+    "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46368&size=130",
+    // Thêm link ảnh sticker của bạn vào đây
+  ];
 
   return (
     <section className="chatWindow">
@@ -166,22 +285,81 @@ export default function ChatWindow({
 
       <div className="chatWindow__body">
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
-        ))}
+            m.type === 'sticker' ? (
+                <div key={m.id} className={`message-row right`}>
+                  <img src={m.content} alt="sticker" className="sticker-img" />
+                  <div className="msg-time">{m.time}</div>
+                </div>
+            ) : (m.type === 'image' ? (
+                    <div key={m.id} className={`message-row ${m.side}`}>
+                      <div className="msg-image-wrapper">
+                        <img
+                            src={m.content}
+                            alt="attachment"
+                            style={{ maxWidth: '200px', borderRadius: '8px', cursor: 'pointer' }}
+                        />
+                      </div>
+                      <div className="msg-time">{m.time}</div>
+                    </div>) : (
+                    <MessageBubble key={m.id} message={m} />
+                )
+            )))}
+        {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
+        <div className="chat-popups">
+          {/* 1. Emoji Picker */}
+          {showEmojiPicker && (
+              <div className="popup-container emoji-area">
+                <EmojiPicker onEmojiClick={handleEmojiClick} height={350} width="100%" />
+              </div>
+          )}
+
+          {/* 2. Sticker Picker */}
+          {showStickerPicker && (
+              <div className="popup-container sticker-area">
+                <div className="sticker-grid">
+                  {MOCK_STICKERS.map((url, idx) => (
+                      <img key={idx} src={url} onClick={() => handleSendSticker(url)} alt="sticker" />
+                  ))}
+                  {/* Fake thêm icon cho đầy */}
+                  {[...Array(10)].map((_, i) => <div key={i} className="sticker-placeholder">Sticker {i}</div>)}
+                </div>
+              </div>
+          )}
+
+          {/* 3. Attach Menu (File/Folder) */}
+          {showAttachMenu && (
+              <div className="popup-container attach-menu">
+                <div className="attach-item" onClick={() => fileInputRef.current.click()}>
+                  <FileText size={20} className="blue-icon" />
+                  <span>Chọn File</span>
+                </div>
+                <div className="attach-item" onClick={() => folderInputRef.current.click()}>
+                  <Folder size={20} className="yellow-icon" />
+                  <span>Chọn Thư mục</span>
+                </div>
+              </div>
+          )}
+        </div>
+
         <div ref={messagesEndRef} />
       </div>
 
       <footer className="chatWindow__footer">
+        {/* INPUTS ẨN ĐỂ XỬ LÝ FILE */}
+        <input type="file" ref={imageInputRef} accept="image/*" multiple style={{display:'none'}} onChange={handleImageSelect} />
+        <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={handleFileSelect} />
+        <input type="file" ref={folderInputRef} style={{display:'none'}} webkitdirectory="" directory="" onChange={handleFolderSelect} />
         <div className="chat-toolbar">
-          <div className="toolbar-icon" title="Gửi Sticker">
+          <div className={`toolbar-icon ${showStickerPicker ? 'active' : ''}`} onClick={toggleSticker} title="Sticker">
             <Sticker size={20} />
           </div>
-          <div className="toolbar-icon" title="Gửi Ảnh">
+          <div className="toolbar-icon" onClick={() => imageInputRef.current.click()} title="Gửi ảnh">
             <ImageIcon size={20} />
           </div>
-          <div className="toolbar-icon" title="Đính kèm File">
+          <div className={`toolbar-icon ${showAttachMenu ? 'active' : ''}`} onClick={toggleAttachMenu} title="Đính kèm file">
             <Paperclip size={20} />
           </div>
+
           <div className="toolbar-icon" title="Gửi Danh thiếp">
             <Contact size={20} />
           </div>
@@ -208,6 +386,11 @@ export default function ChatWindow({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Nhập @, tin nhắn tới ${title}`}
+            onFocus={() => { // Tự động đóng các popup khi gõ phím
+              setShowEmojiPicker(false);
+              setShowStickerPicker(false);
+              setShowAttachMenu(false);
+            }}
           />
 
           <div className="chat-input-actions">
