@@ -32,6 +32,7 @@ function AppInner() {
   }
 
   // Đã đăng nhập thành công
+    const displayName = user.displayName || user.username || "User";
   return (
     <ChatLayout
       navigation={<Sidebar user={user} />}
@@ -44,7 +45,7 @@ function AppInner() {
         />
       }
       // Nếu showInfo = true thì hiện InfoChat, ngược lại thì null (ẩn)
-      infochat={showInfo ? <InfoChat /> : null}
+      infochat={showInfo ? <InfoChat user={user} currentName={displayName} /> : null}
     />
   );
 }
