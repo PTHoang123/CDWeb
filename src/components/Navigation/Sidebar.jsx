@@ -35,7 +35,11 @@ const Sidebar = ({ user }) => {
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
+
     }, []);
+// Nếu user.avatar rỗng thì dùng ảnh tạo tự động theo tên
+    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || "User"}&background=random`;
+    const userName = user?.displayName || user?.username || "User";
 
     const handleToggleSettings = () => {
         setShowSettingDropdown(!showSettingDropdown);
@@ -44,16 +48,20 @@ const Sidebar = ({ user }) => {
     }
 
     // --- XỬ LÝ DỮ LIỆU USER ---
-    // Nếu user.avatar rỗng thì dùng ảnh tạo tự động theo tên
-    const userAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || "User"}&background=random`;
-    const userName = user?.displayName || user?.username || "User";
 
     return (
         <div style={{ position: 'relative', display: 'flex' }}>
             {/* --- SIDEBAR NAV (Giữ nguyên) --- */}
             <div className="sidebar-nav">
                 <div className="user-profile-avatar" onClick={() => {setShowDropdown(!showDropdown); setShowSettingDropdown(false);}}>
-                    <img src={userAvatar} alt="User" />
+                    <img
+                        src={avatarSrc}
+                        alt="Avatar"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://via.placeholder.com/150"; // Ảnh dự phòng nếu link lỗi
+                        }}
+                    />
                 </div>
                 <div className="nav-menu-items">
                     <div className="nav-item active"><MessageSquare size={26} /></div>
@@ -188,7 +196,9 @@ const Sidebar = ({ user }) => {
             )}
 
             {showProfileModal && (
-                <UserProfileModal onClose={() => setShowProfileModal(false)} />
+                <UserProfileModal
+                    user={user}
+                    onClose={() => setShowProfileModal(false)} />
             )}
         </div>
     );

@@ -71,7 +71,7 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
-        photoURL: user.photoURL,
+        avatar: user.photoURL,
         wsUsernameSuggestion,
       });
     } catch (err) {

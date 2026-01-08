@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Camera, ChevronLeft, Pencil } from 'lucide-react';
 import './userprofile.css';
 
-const UserProfileModal = ({ onClose }) => {
+const UserProfileModal = ({ onClose, user}) => {
     const [isEditing, setIsEditing] = useState(false);
     const [info, setInfo] = useState({
         name: "Đức Hải",
@@ -10,7 +10,8 @@ const UserProfileModal = ({ onClose }) => {
         dob: { d: "31", m: "12", y: "2004" },
         phone: "+84 867 744 571"
     });
-
+    const userAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || "User"}&background=random`;
+    const userName = user?.displayName || user?.username || "User";
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-container" onClick={e => e.stopPropagation()}>
@@ -35,11 +36,11 @@ const UserProfileModal = ({ onClose }) => {
                                 </div>
                                 <div className="avatar-overlap">
                                     <div className="avatar-wrapper">
-                                        <img src="https://img.tripi.vn/cdn-cgi/image/width=700,height=700/https://gcs.tripi.vn/public-tripi/tripi-feed/img/482752udT/anh-mo-ta.png" alt="avt" />
+                                        <img src={userAvatar} alt="avt" />
                                         <div className="camera-badge"><Camera size={14} /></div>
                                     </div>
                                     <div className="name-display">
-                                        <h3>{info.name}</h3>
+                                        <h3>{userName}</h3>
                                         <Pencil size={14} className="edit-icon" onClick={() => setIsEditing(true)} />
                                     </div>
                                 </div>

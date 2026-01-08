@@ -110,7 +110,7 @@ export default function InfoChatAndRepo({ user, currentName }) {
         <>
             <div className="info-profile">
                 <img
-                    src={user?.avatar || `https://ui-avatars.com/api/?name=${currentName}&size=128`}
+                    src={user?.avatar || user?.photoURL || "https://gcs.tripi.vn/public-tripi/tripi-feed/img/482752udT/anh-mo-ta.png"}
                     alt="avatar"
                     className="info-avatar-large"
                 />
