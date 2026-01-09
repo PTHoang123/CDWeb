@@ -123,6 +123,11 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
             marginBottom: 12,
           }}
         >
+          <img
+              src="https://imagepng.org/wp-content/uploads/2019/08/google-icon.png"
+              alt="Google Logo"
+              style={{ width: "20px", height: "20px" }}
+          />
           {googleLoading ? "Signing in..." : "Continue with Google"}
         </button>
 

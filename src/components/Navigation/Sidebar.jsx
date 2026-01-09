@@ -178,7 +178,7 @@ const Sidebar = ({ user }) => {
                             <div className="sub-dropdown support-pos">
                                 <div className="dropdown-item">Thông tin phiên bản</div>
                                 <div className="dropdown-item">Liên hệ</div>
-                                <div className="dropdown-item">Gửi file log tới Zalo</div>
+                                <div className="dropdown-item">Gửi file log tới AppChat</div>
                                 <div className="dropdown-divider"></div>
                                 <div className="dropdown-item">Phím tắt</div>
                             </div>
