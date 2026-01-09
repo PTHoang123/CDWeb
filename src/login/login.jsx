@@ -119,8 +119,13 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
             border: "1px solid rgba(255,255,255,.12)",
             background: "rgba(255,255,255,.08)",
             color: "inherit",
-            cursor: "pointer",
-            marginBottom: 12,
+            cursor: googleLoading ? "wait" : "pointer",
+            marginBottom: 10,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "7px",
+            opacity: googleLoading ? 0.7 : 1
           }}
         >
           <img
