@@ -1,4 +1,4 @@
-import { wsRelogin } from "./chatApi";
+import { wsRelogin, wsLogout } from "./chatApi";
 
 // WebSocket-based authentication using the shared WsClient
 
@@ -96,4 +96,24 @@ export async function reloginOverWs(
       }
     });
   });
+}
+
+/**
+ * Hàm xử lý đăng xuất
+ * 1. Gửi lệnh LOGOUT lên server (Fire and forget - Gửi và không cần chờ phản hồi phức tạp)
+ * 2. (Tuỳ chọn) Đóng kết nối nếu cần thiết kế bảo mật cao, nhưng thường chat app giữ kết nối để login lại nhanh.
+ */
+export async function logoutOverWs(client) {
+  if (!client || !client.isOpen()) {
+    console.warn("Client chưa kết nối, chỉ thực hiện logout ở Client.");
+    return;
+  }
+
+  try {
+    // Gọi hàm wsLogout đã có sẵn trong chatApi.js
+    await wsLogout(client);
+    console.log("Đã gửi lệnh LOGOUT lên Server");
+  } catch (error) {
+    console.error("Lỗi khi gửi lệnh logout:", error);
+  }
 }

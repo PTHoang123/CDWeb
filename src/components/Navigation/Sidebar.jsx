@@ -7,7 +7,7 @@ import { Emoji, EmojiStyle } from 'emoji-picker-react';
 import UserProfileModal from './UserProfileModal';
 import './sidebar.css';
 
-const Sidebar = ({ user }) => {
+const Sidebar = ({ user, onLogout}) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
 
@@ -77,7 +77,7 @@ const Sidebar = ({ user }) => {
                 </div>
             </div>
 
-            {/* --- PROFILE MENU (Giữ nguyên) --- */}
+            {/* --- PROFILE MENU --- */}
             {showDropdown && (
                 <div className="sidebar-dropdown profile-menu" ref={profileRef}>
                     <div className="dropdown-header">{userName}</div>
@@ -86,7 +86,10 @@ const Sidebar = ({ user }) => {
                     <div className="dropdown-item" onClick={() => { setShowProfileModal(true); setShowDropdown(false); }}>Hồ sơ của bạn</div>
                     <div className="dropdown-item">Cài đặt</div>
                     <div className="dropdown-divider"></div>
-                    <div className="dropdown-item logout">Đăng xuất</div>
+                    <div className="dropdown-item logout" onClick={() => {
+                        setShowDropdown(false); // Đóng menu cho gọn
+                        onLogout();
+                    }}>Đăng xuất</div>
                 </div>
             )}
 
@@ -186,7 +189,10 @@ const Sidebar = ({ user }) => {
                     </div>
 
                     <div className="dropdown-divider"></div>
-                    <div className="dropdown-item logout" onMouseEnter={() => setActiveSubMenu(null)}>
+                    <div className="dropdown-item logout"
+                         onMouseEnter={() => setActiveSubMenu(null)}
+                         onClick={onLogout} // <--- Thêm dòng này
+                    >
                         <span className="logout-text">Đăng xuất</span>
                     </div>
                     <div className="dropdown-item" onMouseEnter={() => setActiveSubMenu(null)}>
