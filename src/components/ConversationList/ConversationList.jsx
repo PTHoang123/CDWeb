@@ -140,7 +140,8 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
   useEffect(() => {
     if (!connected) return;
 
-    queueMicrotask(() => setListLoading(true));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setListLoading(true);
 
     const off = client.on("json", (response) => {
       const unwrapped = unwrapServerMessage(response);
