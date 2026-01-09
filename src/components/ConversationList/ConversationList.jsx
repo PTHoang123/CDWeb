@@ -37,30 +37,11 @@ function unwrapServerMessage(message) {
 function normalizeUserListPayload(payload) {
   const data = payload ?? {};
 
-  const roomsRaw =
-    data.rooms ??
-    data.room ??
-    data.ROOM_LIST ??
-    data.roomList ??
-    data.room_list ??
-    data.list_room ??
-    [];
+  const roomsRaw = [];
 
-  const usersRaw =
-    data.users ??
-    data.user ??
-    data.USER_LIST ??
-    data.userList ??
-    data.user_list ??
-    data.list_user ??
-    [];
+  const usersRaw = [];
 
-  const listRaw =
-    data.list ??
-    data.LIST ??
-    data.items ??
-    data.ALL ??
-    (Array.isArray(data) ? data : null);
+  const listRaw = Array.isArray(data) ? data : null;
   console.log("Raw list data from server:", listRaw);
   const rooms = (Array.isArray(roomsRaw) ? roomsRaw : []).map((r) => {
     const name = typeof r === "string" ? r : r?.name ?? r?.id ?? String(r);
@@ -153,9 +134,9 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
         setUsers([]);
         return;
       }
-
+      console.log("Raw user list response:", unwrapped);
       const normalized = normalizeUserListPayload(unwrapped.data);
-      console.log(normalized);
+
       setRooms(normalized.rooms);
       setUsers(normalized.users);
     });
