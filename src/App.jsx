@@ -64,6 +64,7 @@ function AppInner() {
         <ConversationList
           selectedKey={activeChat?.key}
           onSelectConversation={(c) => setActiveChat(c)}
+          currentUsername={user?.username}
         />
       }
       chat={
