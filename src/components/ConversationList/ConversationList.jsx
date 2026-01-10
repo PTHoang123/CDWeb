@@ -2,29 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Search, UserPlus, Users, X } from "lucide-react";
 import Modal from "../Modal/Modal";
 import useWs from "../../context/useWs";
-import { wsGetUserList } from "../../api/chatApi";
+import { wsCheckUserExist, wsGetUserList } from "../../api/chatApi";
 import "./conversationList.css";
-
-const MOCK_SEARCH_RESULTS = [
-  {
-    id: 101,
-    name: "Nguyễn Văn A",
-    phone: "0987654321",
-    avatar: "https://ui-avatars.com/api/?name=A",
-  },
-  {
-    id: 102,
-    name: "Trần Thị B",
-    phone: "0912345678",
-    avatar: "https://ui-avatars.com/api/?name=B",
-  },
-  {
-    id: 103,
-    name: "Lê C",
-    phone: "0999888777",
-    avatar: "https://ui-avatars.com/api/?name=C",
-  },
-];
 
 function unwrapServerMessage(message) {
   const event = message?.event ?? message?.data?.event;
@@ -32,6 +11,30 @@ function unwrapServerMessage(message) {
   const mes = message?.mes ?? message?.data?.mes;
   const data = message?.data?.data ?? message?.data ?? message;
   return { event, status, mes, data };
+}
+
+function waitForEvent(client, targetEvent, { timeoutMs = 8000 } = {}) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      off();
+      reject(new Error("timeout"));
+    }, timeoutMs);
+
+    const off = client.on("json", (msg) => {
+      const unwrapped = unwrapServerMessage(msg);
+      if (unwrapped.event !== targetEvent) return;
+
+      clearTimeout(timer);
+      if (done) return;
+      done = true;
+      off();
+      resolve(unwrapped);
+    });
+  });
 }
 
 function normalizeUserListPayload(payload) {
@@ -42,7 +45,6 @@ function normalizeUserListPayload(payload) {
   const usersRaw = [];
 
   const listRaw = Array.isArray(data) ? data : null;
-  console.log("Raw list data from server:", listRaw);
   const rooms = (Array.isArray(roomsRaw) ? roomsRaw : []).map((r) => {
     const name = typeof r === "string" ? r : r?.name ?? r?.id ?? String(r);
     return { type: "room", id: String(name), name: String(name) };
@@ -109,6 +111,7 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchMessage, setSearchMessage] = useState("");
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
 
@@ -121,7 +124,6 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
   useEffect(() => {
     if (!connected) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setListLoading(true);
 
     const off = client.on("json", (response) => {
@@ -134,7 +136,6 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
         setUsers([]);
         return;
       }
-      console.log("Raw user list response:", unwrapped);
       const normalized = normalizeUserListPayload(unwrapped.data);
 
       setRooms(normalized.rooms);
@@ -156,13 +157,45 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
   }, [rooms, users]);
 
   // Hàm giả lập tìm kiếm User
-  const handleSearchUser = () => {
-    if (!searchTerm) return;
+  const handleSearchUser = async () => {
+    const keyword = searchTerm.trim();
+    if (!keyword) return;
+    if (!connected) {
+      setSearchMessage("Đang kết nối... vui lòng thử lại");
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      setSearchResults(MOCK_SEARCH_RESULTS);
+    setSearchMessage("");
+    setSearchResults([]);
+
+    try {
+      await wsCheckUserExist(client, keyword);
+      const res = await waitForEvent(client, "CHECK_USER_EXIST", {
+        timeoutMs: 8000,
+      });
+
+      const exists = res?.data?.status === true;
+      if (!exists) {
+        setSearchResults([]);
+        setSearchMessage("Không tìm thấy người dùng");
+        return;
+      }
+
+      setSearchResults([
+        {
+          id: keyword,
+          name: keyword,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            keyword
+          )}`,
+        },
+      ]);
+    } catch {
+      setSearchMessage("Không thể tìm kiếm. Vui lòng thử lại");
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   // Hàm reset lại khi đóng
@@ -171,6 +204,7 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
     setIsOpenCreateGroup(false);
     setSearchTerm("");
     setSearchResults([]);
+    setSearchMessage("");
     setGroupName("");
     setSelectedUsers([]);
   };
@@ -353,15 +387,32 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
                   <img src={user.avatar} className="avatar-small" alt="" />
                   <div className="user-info">
                     <div className="user-name">{user.name}</div>
-                    <div className="user-phone">{user.phone}</div>
+                    <div className="user-phone">Người dùng</div>
                   </div>
-                  <button className="btn-outline">Kết bạn</button>
+                  <button
+                    className="btn-outline"
+                    onClick={() => {
+                      const key = `people:${user.name}`;
+                      onSelectConversation?.({
+                        type: "people",
+                        to: user.name,
+                        name: user.name,
+                        key,
+                      });
+                      setSelectedId(key);
+                      setIsOpenAddFriend(false);
+                    }}
+                  >
+                    Nhắn tin
+                  </button>
                 </div>
               ))
             )}
             {/* Gợi ý khi chưa tìm */}
             {!isLoading && searchResults.length === 0 && (
-              <div className="empty-state">Nhập từ khóa để tìm bạn bè</div>
+              <div className="empty-state">
+                {searchMessage || "Nhập từ khóa để tìm bạn bè"}
+              </div>
             )}
           </div>
         </div>
