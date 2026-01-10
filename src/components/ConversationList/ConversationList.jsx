@@ -101,7 +101,11 @@ function normalizeUserListPayload(payload) {
   return { rooms, users };
 }
 
-const ConversationList = ({ onSelectConversation, selectedKey }) => {
+const ConversationList = ({
+  onSelectConversation,
+  selectedKey,
+  currentUsername,
+}) => {
   const { client, connected } = useWs();
 
   const [activeTab, setActiveTab] = useState("priority");
@@ -150,16 +154,29 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
   }, [client, connected]);
 
   const conversationItems = useMemo(() => {
+    const me = (currentUsername ?? "").trim();
+    const filteredUsers = me
+      ? users.filter((u) => String(u?.id).toLowerCase() !== me.toLowerCase())
+      : users;
+
     return {
       rooms,
-      users,
+      users: filteredUsers,
     };
-  }, [rooms, users]);
+  }, [rooms, users, currentUsername]);
 
   // Hàm giả lập tìm kiếm User
   const handleSearchUser = async () => {
     const keyword = searchTerm.trim();
     if (!keyword) return;
+
+    const me = (currentUsername ?? "").trim();
+    if (me && keyword.toLowerCase() === me.toLowerCase()) {
+      setSearchResults([]);
+      setSearchMessage("Bạn không thể tìm chính mình");
+      return;
+    }
+
     if (!connected) {
       setSearchMessage("Đang kết nối... vui lòng thử lại");
       return;
@@ -389,6 +406,7 @@ const ConversationList = ({ onSelectConversation, selectedKey }) => {
                     <div className="user-name">{user.name}</div>
                     <div className="user-phone">Người dùng</div>
                   </div>
+
                   <button
                     className="btn-outline"
                     onClick={() => {
