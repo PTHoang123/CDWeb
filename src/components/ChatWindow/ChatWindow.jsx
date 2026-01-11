@@ -18,7 +18,43 @@ import {
 } from "lucide-react";
 import "./chatWindow.css";
 import useWs from "../../context/useWs";
-import { wsSendChat } from "../../api/chatApi";
+import { wsCheckUserOnline, wsSendChat } from "../../api/chatApi";
+
+function unwrapServerMessage(message) {
+  const event = message?.event ?? message?.data?.event;
+  const status = message?.status ?? message?.data?.status;
+  const data = message?.data?.data ?? message?.data ?? message;
+  return { event, status, data };
+}
+
+function parseOnlineStatus(unwrapped) {
+  const d = unwrapped?.data ?? {};
+  const v = d.status ?? d.online ?? d.isOnline;
+  return v === true;
+}
+
+function waitForEvent(client, targetEvent, { timeoutMs = 6000 } = {}) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      off();
+      reject(new Error("timeout"));
+    }, timeoutMs);
+
+    const off = client.on("json", (msg) => {
+      const unwrapped = unwrapServerMessage(msg);
+      if (unwrapped.event !== targetEvent) return;
+      clearTimeout(timer);
+      if (done) return;
+      done = true;
+      off();
+      resolve(unwrapped);
+    });
+  });
+}
 
 export default function ChatWindow({
   title = "Chat",
@@ -29,6 +65,42 @@ export default function ChatWindow({
   chatTo = "ABC",
 }) {
   const { client, connected } = useWs();
+
+  const nextIdRef = useRef(1);
+  const nextId = () => String(nextIdRef.current++);
+
+  const [presence, setPresence] = useState("unknown"); // online | offline | unknown
+
+  useEffect(() => {
+    if (!connected) {
+      queueMicrotask(() => setPresence("unknown"));
+      return;
+    }
+
+    // Only check online status for 1:1 chats
+    if (chatType !== "people" || !chatTo) {
+      queueMicrotask(() => setPresence("unknown"));
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await wsCheckUserOnline(client, chatTo);
+        const res = await waitForEvent(client, "CHECK_USER_ONLINE", {
+          timeoutMs: 6000,
+        });
+        const isOnline = parseOnlineStatus(res);
+        if (!cancelled) setPresence(isOnline ? "online" : "offline");
+      } catch {
+        if (!cancelled) setPresence("unknown");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, connected, chatType, chatTo]);
 
   const [text, setText] = useState("");
   const [messages, setMessages] = useState(
@@ -62,9 +134,6 @@ export default function ChatWindow({
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
-  // Ref để click ra ngoài thì đóng popup (tùy chọn nâng cao)
-  const wrapperRef = useRef(null);
-
   // --- XỬ LÝ EMOJI ---
   const handleEmojiClick = (emojiObject) => {
     setText((prev) => prev + emojiObject.emoji);
@@ -75,13 +144,16 @@ export default function ChatWindow({
   const handleSendSticker = (url) => {
     // Gửi sticker coi như gửi một tin nhắn dạng ảnh/sticker
     const newMessage = {
-      id: Date.now().toString(),
+      id: nextId(),
       side: "right",
       type: "sticker", // Đánh dấu là sticker
       content: url,
-      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
-    setMessages([...messages, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
     setShowStickerPicker(false);
   };
 
@@ -102,11 +174,14 @@ export default function ChatWindow({
 
           // Tạo tin nhắn mới dạng ảnh
           const newMessage = {
-            id: Date.now().toString() + Math.random(),
+            id: nextId(),
             side: "right", // Tin nhắn của mình nằm bên phải
             type: "image", // Đánh dấu là ảnh để hiển thị thẻ img
             content: base64Image, // Nội dung chính là cái mã ảnh
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            time: new Date().toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
           };
 
           // Cập nhật vào danh sách tin nhắn để hiện lên màn hình ngay
@@ -188,7 +263,7 @@ export default function ChatWindow({
       setMessages((prev) => [
         ...prev,
         {
-          id: `${Date.now()}-${Math.random()}`,
+          id: nextId(),
           side: "left",
           author: from || "Unknown",
           content: String(mes),
@@ -215,7 +290,7 @@ export default function ChatWindow({
     setMessages((prev) => [
       ...prev,
       {
-        id: `${Date.now()}`,
+        id: nextId(),
         side: "right",
         content: mes,
         time: new Date().toLocaleTimeString([], {
@@ -240,7 +315,7 @@ export default function ChatWindow({
       document.querySelector(".chatWindow__composer")?.requestSubmit();
     } else {
       const next = {
-        id: `${Date.now()}`,
+        id: nextId(),
         side: "right",
         content: "👍",
         time: new Date().toLocaleTimeString([], {
@@ -265,7 +340,15 @@ export default function ChatWindow({
         <div className="chatWindow__header-info">
           <div className="chatWindow__title">{title}</div>
           <div className="chatWindow__subtitle">
-            {connected ? "Online" : "Connecting..."}
+            {!connected
+              ? "Connecting..."
+              : chatType === "people"
+              ? presence === "online"
+                ? "Online"
+                : presence === "offline"
+                ? "Offline"
+                : "..."
+              : "Online"}
           </div>
         </div>
 
@@ -284,60 +367,84 @@ export default function ChatWindow({
       </header>
 
       <div className="chatWindow__body">
-        {messages.map((m) => (
-            m.type === 'sticker' ? (
-                <div key={m.id} className={`message-row right`}>
-                  <img src={m.content} alt="sticker" className="sticker-img" />
-                  <div className="msg-time">{m.time}</div>
-                </div>
-            ) : (m.type === 'image' ? (
-                    <div key={m.id} className={`message-row ${m.side}`}>
-                      <div className="msg-image-wrapper">
-                        <img
-                            src={m.content}
-                            alt="attachment"
-                            style={{ maxWidth: '200px', borderRadius: '8px', cursor: 'pointer' }}
-                        />
-                      </div>
-                      <div className="msg-time">{m.time}</div>
-                    </div>) : (
-                    <MessageBubble key={m.id} message={m} />
-                )
-            )))}
+        {messages.map((m) =>
+          m.type === "sticker" ? (
+            <div key={m.id} className={`message-row right`}>
+              <img src={m.content} alt="sticker" className="sticker-img" />
+              <div className="msg-time">{m.time}</div>
+            </div>
+          ) : m.type === "image" ? (
+            <div key={m.id} className={`message-row ${m.side}`}>
+              <div className="msg-image-wrapper">
+                <img
+                  src={m.content}
+                  alt="attachment"
+                  style={{
+                    maxWidth: "200px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                  }}
+                />
+              </div>
+              <div className="msg-time">{m.time}</div>
+            </div>
+          ) : (
+            <MessageBubble key={m.id} message={m} />
+          )
+        )}
         {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
         <div className="chat-popups">
           {/* 1. Emoji Picker */}
           {showEmojiPicker && (
-              <div className="popup-container emoji-area">
-                <EmojiPicker onEmojiClick={handleEmojiClick} height={350} width="100%" />
-              </div>
+            <div className="popup-container emoji-area">
+              <EmojiPicker
+                onEmojiClick={handleEmojiClick}
+                height={350}
+                width="100%"
+              />
+            </div>
           )}
 
           {/* 2. Sticker Picker */}
           {showStickerPicker && (
-              <div className="popup-container sticker-area">
-                <div className="sticker-grid">
-                  {MOCK_STICKERS.map((url, idx) => (
-                      <img key={idx} src={url} onClick={() => handleSendSticker(url)} alt="sticker" />
-                  ))}
-                  {/* Fake thêm icon cho đầy */}
-                  {[...Array(10)].map((_, i) => <div key={i} className="sticker-placeholder">Sticker {i}</div>)}
-                </div>
+            <div className="popup-container sticker-area">
+              <div className="sticker-grid">
+                {MOCK_STICKERS.map((url, idx) => (
+                  <img
+                    key={idx}
+                    src={url}
+                    onClick={() => handleSendSticker(url)}
+                    alt="sticker"
+                  />
+                ))}
+                {/* Fake thêm icon cho đầy */}
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} className="sticker-placeholder">
+                    Sticker {i}
+                  </div>
+                ))}
               </div>
+            </div>
           )}
 
           {/* 3. Attach Menu (File/Folder) */}
           {showAttachMenu && (
-              <div className="popup-container attach-menu">
-                <div className="attach-item" onClick={() => fileInputRef.current.click()}>
-                  <FileText size={20} className="blue-icon" />
-                  <span>Chọn File</span>
-                </div>
-                <div className="attach-item" onClick={() => folderInputRef.current.click()}>
-                  <Folder size={20} className="yellow-icon" />
-                  <span>Chọn Thư mục</span>
-                </div>
+            <div className="popup-container attach-menu">
+              <div
+                className="attach-item"
+                onClick={() => fileInputRef.current.click()}
+              >
+                <FileText size={20} className="blue-icon" />
+                <span>Chọn File</span>
               </div>
+              <div
+                className="attach-item"
+                onClick={() => folderInputRef.current.click()}
+              >
+                <Folder size={20} className="yellow-icon" />
+                <span>Chọn Thư mục</span>
+              </div>
+            </div>
           )}
         </div>
 
@@ -346,17 +453,48 @@ export default function ChatWindow({
 
       <footer className="chatWindow__footer">
         {/* INPUTS ẨN ĐỂ XỬ LÝ FILE */}
-        <input type="file" ref={imageInputRef} accept="image/*" multiple style={{display:'none'}} onChange={handleImageSelect} />
-        <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={handleFileSelect} />
-        <input type="file" ref={folderInputRef} style={{display:'none'}} webkitdirectory="" directory="" onChange={handleFolderSelect} />
+        <input
+          type="file"
+          ref={imageInputRef}
+          accept="image/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={handleImageSelect}
+        />
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFileSelect}
+        />
+        <input
+          type="file"
+          ref={folderInputRef}
+          style={{ display: "none" }}
+          webkitdirectory=""
+          directory=""
+          onChange={handleFolderSelect}
+        />
         <div className="chat-toolbar">
-          <div className={`toolbar-icon ${showStickerPicker ? 'active' : ''}`} onClick={toggleSticker} title="Sticker">
+          <div
+            className={`toolbar-icon ${showStickerPicker ? "active" : ""}`}
+            onClick={toggleSticker}
+            title="Sticker"
+          >
             <Sticker size={20} />
           </div>
-          <div className="toolbar-icon" onClick={() => imageInputRef.current.click()} title="Gửi ảnh">
+          <div
+            className="toolbar-icon"
+            onClick={() => imageInputRef.current.click()}
+            title="Gửi ảnh"
+          >
             <ImageIcon size={20} />
           </div>
-          <div className={`toolbar-icon ${showAttachMenu ? 'active' : ''}`} onClick={toggleAttachMenu} title="Đính kèm file">
+          <div
+            className={`toolbar-icon ${showAttachMenu ? "active" : ""}`}
+            onClick={toggleAttachMenu}
+            title="Đính kèm file"
+          >
             <Paperclip size={20} />
           </div>
 
@@ -386,7 +524,8 @@ export default function ChatWindow({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Nhập @, tin nhắn tới ${title}`}
-            onFocus={() => { // Tự động đóng các popup khi gõ phím
+            onFocus={() => {
+              // Tự động đóng các popup khi gõ phím
               setShowEmojiPicker(false);
               setShowStickerPicker(false);
               setShowAttachMenu(false);
@@ -394,7 +533,11 @@ export default function ChatWindow({
           />
 
           <div className="chat-input-actions">
-            <div className="action-icon-small" title="Biểu cảm">
+            <div
+              className="action-icon-small"
+              title="Biểu cảm"
+              onClick={toggleEmoji}
+            >
               <Smile size={20} />
             </div>
             <div

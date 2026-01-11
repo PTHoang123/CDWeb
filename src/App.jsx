@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState } from "react";
 import ChatLayout from "./components/ChatLayout";
 import Sidebar from "./components/Navigation/Sidebar";
@@ -15,12 +16,21 @@ import { logoutOverWs } from "./api/wsAuth";
 const WS_URL = "wss://chat.longapp.site/chat/chat";
 
 function AppInner() {
+  // 1. Lấy client WebSocket từ context
   const { client } = useWs();
+
   const [user, setUser] = useState(null);
   const [authPage, setAuthPage] = useState("login");
   // State quản lý việc ẩn/hiện cột thông tin bên phải
   const [showInfo, setShowInfo] = useState(true);
+  const [activeChat, setActiveChat] = useState({
+    type: "room",
+    to: "36",
+    name: "Anh em 36",
+    key: "room:36",
+  });
 
+  // 2. Định nghĩa hàm xử lý Logout
   const handleLogout = () => {
     // Gửi lệnh lên server (nếu server cần biết user đã thoát)
     logoutOverWs(client);
@@ -50,16 +60,28 @@ function AppInner() {
 
   return (
     <ChatLayout
-        navigation={<Sidebar user={user} onLogout={handleLogout} />}
-      sidebar={<ConversationList />}
-      chat={
-        <ChatWindow
-            title={`Đang chat: ${user.username ?? user.displayName ?? "User"}`}
-            onToggleInfo={() => setShowInfo(!showInfo)}
+      // 3. Truyền prop onLogout xuống Sidebar
+      navigation={<Sidebar user={user} onLogout={handleLogout} />}
+      sidebar={
+        <ConversationList
+          selectedKey={activeChat?.key}
+          onSelectConversation={(c) => setActiveChat(c)}
+          currentUsername={user?.username}
         />
       }
-      // Nếu showInfo = true thì hiện InfoChat, ngược lại thì null (ẩn)
-      infochat={showInfo ? <InfoChat user={user} currentName={displayName} /> : null}
+      chat={
+        <ChatWindow
+          title={`Đang chat: ${
+            activeChat?.name ?? user.username ?? user.displayName ?? "User"
+          }`}
+          onToggleInfo={() => setShowInfo(!showInfo)}
+          chatType={activeChat?.type ?? "room"}
+          chatTo={activeChat?.to ?? "36"}
+        />
+      }
+      infochat={
+        showInfo ? <InfoChat user={user} currentName={displayName} /> : null
+      }
     />
   );
 }
