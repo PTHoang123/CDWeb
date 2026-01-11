@@ -35,6 +35,7 @@ function AppInner() {
     localStorage.removeItem("firebase_id_token");
     localStorage.removeItem("chat_user");
     localStorage.removeItem("chat_relogin_code");
+    localStorage.removeItem("chat_user_profile");
 
     // 3. Reset state để về trang Login
     setUser(null);

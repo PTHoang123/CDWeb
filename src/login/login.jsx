@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./loginStyle.css";
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
@@ -13,47 +13,73 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  // State kiểm soát việc đang tự động đăng nhập
   const [isRelogging, setIsRelogging] = useState(true);
 
-  // Danh sách tài khoản mẫu theo yêu cầu của bạn
+  // Chốt chặn để không chạy Relogin 2 lần
+  const hasTriedRelogin = useRef(false);
+
   const demoAccounts = [
     { name: "Đức Hải", user: "duchai", pass: "12345" },
     { name: "Tiến Hoàng", user: "tienhoang", pass: "12345" },
     { name: "Thanh Huy", user: "thanhhuy", pass: "12345" },
     { name: "Giảng viên", user: "long", pass: "12345" },
   ];
+
+  // --- [FIX] Logic Tự động đăng nhập ---
   useEffect(() => {
-    // Chỉ chạy khi WebSocket đã kết nối
-    if (!connected || !client) return;
+    if (!connected || !client || hasTriedRelogin.current) return;
 
     const checkAutoLogin = async () => {
-      // Lấy thông tin đã lưu từ lần đăng nhập trước
-      const savedUser = localStorage.getItem("chat_user");
+      // 1. Lấy chuỗi JSON profile đã lưu
+      const savedProfileStr = localStorage.getItem("chat_user_profile");
       const savedCode = localStorage.getItem("chat_relogin_code");
 
-      if (savedUser && savedCode) {
-        console.log("Phát hiện phiên cũ, đang khôi phục kết nối...");
-        try {
-          // Gọi API Relogin
-          const res = await reloginOverWs(client, savedUser, savedCode);
-
-          if (res && res.status === "success") {
-            console.log("Relogin thành công!");
-            // Gọi hàm success để vào màn hình Chat ngay lập tức
-            onLoginSuccess(res.data || { username: savedUser });
-            return; // Kết thúc, không chạy xuống phần tắt loading
-          }
-        } catch (err) {
-          console.warn("Relogin thất bại (hết hạn hoặc lỗi):", err.message);
-          // Nếu lỗi, xóa token cũ để tránh thử lại vô ích
-          localStorage.removeItem("chat_relogin_code");
-        }
+      if (!savedProfileStr || !savedCode) {
+        setIsRelogging(false);
+        return;
       }
 
-      // Nếu không có token hoặc relogin thất bại, tắt màn hình chờ
-      setIsRelogging(false);
+      hasTriedRelogin.current = true;
+      let savedProfile = {};
+      try {
+        savedProfile = JSON.parse(savedProfileStr);
+      } catch (e) {
+        setIsRelogging(false); return;
+      }
+
+      console.log("🚀 Đang khôi phục phiên cho:", savedProfile.username);
+
+      try {
+        // Gọi API Relogin
+        const res = await reloginOverWs(client, savedProfile.username, savedCode);
+
+        if (res && res.status === "success") {
+          // Server có thể trả về thông tin user mới nhất, hoặc không.
+          // Ta ưu tiên dùng data từ server, nếu thiếu thì bù bằng data đã lưu (savedProfile)
+          const svData = res.data || {};
+          const finalUserData = {
+            ...savedProfile, // Dữ liệu cũ (avatar, name...)
+            ...svData        // Dữ liệu mới từ server (nếu có)
+          };
+
+          // Nếu server cấp code mới thì lưu lại
+          if (svData.RE_LOGIN_CODE) {
+            localStorage.setItem("chat_relogin_code", svData.RE_LOGIN_CODE);
+          }
+
+          // Cập nhật lại profile mới nhất vào localStorage
+          localStorage.setItem("chat_user_profile", JSON.stringify(finalUserData));
+
+          onLoginSuccess(finalUserData);
+        } else {
+          throw new Error(res.mes || "Failed");
+        }
+      } catch (err) {
+        console.error("❌ Relogin thất bại:", err);
+        localStorage.removeItem("chat_relogin_code");
+        localStorage.removeItem("chat_user_profile"); // Xóa profile lỗi
+        setIsRelogging(false);
+      }
     };
 
     checkAutoLogin();
@@ -68,20 +94,21 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
       const finalUser = autoUser || username;
       const finalPass = autoPass || password;
 
-      // Gọi hàm đăng nhập qua WS
+      // Reset cờ relogin để lần sau F5 lại chạy được
+      hasTriedRelogin.current = false;
+
       const res = await loginOverWs(client, finalUser, finalPass);
 
-      // QUAN TRỌNG: Kiểm tra res có dữ liệu không
       if (res) {
-        console.log("Dữ liệu User nhận được:", res);
-        // Lưu username và code để dùng cho relogin sau này
-        localStorage.setItem("chat_user", res.username);
+        console.log("Login thành công:", res);
+
+        // --- [QUAN TRỌNG] Lưu toàn bộ object user vào localStorage ---
+        localStorage.setItem("chat_user_profile", JSON.stringify(res));
+
         if (res.RE_LOGIN_CODE) {
           localStorage.setItem("chat_relogin_code", res.RE_LOGIN_CODE);
         }
-        onLoginSuccess(res); // Lúc này App.jsx mới nhận được user và chuyển trang
-      } else {
-        setError("Server trả về dữ liệu trống");
+        onLoginSuccess(res);
       }
     } catch (err) {
       setError(err.message || "Sai tài khoản hoặc mật khẩu");
