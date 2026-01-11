@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./loginStyle.css";
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import useWs from "../context/useWs";
-import { loginOverWs } from "../api/wsAuth";
+import { loginOverWs, reloginOverWs } from "../api/wsAuth";
 
 const Login = ({ onLoginSuccess, onGoRegister }) => {
   const { client, connected } = useWs();
@@ -14,6 +14,9 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // State kiểm soát việc đang tự động đăng nhập
+  const [isRelogging, setIsRelogging] = useState(true);
+
   // Danh sách tài khoản mẫu theo yêu cầu của bạn
   const demoAccounts = [
     { name: "Đức Hải", user: "duchai", pass: "12345" },
@@ -21,6 +24,40 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
     { name: "Thanh Huy", user: "thanhhuy", pass: "12345" },
     { name: "Giảng viên", user: "long", pass: "12345" },
   ];
+  useEffect(() => {
+    // Chỉ chạy khi WebSocket đã kết nối
+    if (!connected || !client) return;
+
+    const checkAutoLogin = async () => {
+      // Lấy thông tin đã lưu từ lần đăng nhập trước
+      const savedUser = localStorage.getItem("chat_user");
+      const savedCode = localStorage.getItem("chat_relogin_code");
+
+      if (savedUser && savedCode) {
+        console.log("Phát hiện phiên cũ, đang khôi phục kết nối...");
+        try {
+          // Gọi API Relogin
+          const res = await reloginOverWs(client, savedUser, savedCode);
+
+          if (res && res.status === "success") {
+            console.log("Relogin thành công!");
+            // Gọi hàm success để vào màn hình Chat ngay lập tức
+            onLoginSuccess(res.data || { username: savedUser });
+            return; // Kết thúc, không chạy xuống phần tắt loading
+          }
+        } catch (err) {
+          console.warn("Relogin thất bại (hết hạn hoặc lỗi):", err.message);
+          // Nếu lỗi, xóa token cũ để tránh thử lại vô ích
+          localStorage.removeItem("chat_relogin_code");
+        }
+      }
+
+      // Nếu không có token hoặc relogin thất bại, tắt màn hình chờ
+      setIsRelogging(false);
+    };
+
+    checkAutoLogin();
+  }, [connected, client, onLoginSuccess]);
 
   const handleSubmit = async (e, autoUser = null, autoPass = null) => {
     if (e) e.preventDefault();
@@ -37,6 +74,11 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
       // QUAN TRỌNG: Kiểm tra res có dữ liệu không
       if (res) {
         console.log("Dữ liệu User nhận được:", res);
+        // Lưu username và code để dùng cho relogin sau này
+        localStorage.setItem("chat_user", res.username);
+        if (res.RE_LOGIN_CODE) {
+          localStorage.setItem("chat_relogin_code", res.RE_LOGIN_CODE);
+        }
         onLoginSuccess(res); // Lúc này App.jsx mới nhận được user và chuyển trang
       } else {
         setError("Server trả về dữ liệu trống");
@@ -55,13 +97,9 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
     try {
       const cred = await signInWithPopup(auth, googleProvider);
       const user = cred.user;
-
       const idToken = await user.getIdToken();
       localStorage.setItem("firebase_id_token", idToken);
 
-      // IMPORTANT:
-      // Google login is only Firebase Auth. Your WS server still needs a WS username.
-      // Strategy (simple): let Google login through Firebase, then use email prefix as suggested WS username.
       const wsUsernameSuggestion = (
         user.email?.split("@")[0] || user.uid
       ).slice(0, 20);
@@ -81,6 +119,17 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
       setGoogleLoading(false);
     }
   };
+
+  if (isRelogging && localStorage.getItem("chat_relogin_code")) {
+    return (
+        <div className="login-body-wrapper">
+          <div style={{ color: "white", textAlign: "center", marginTop: "20vh" }}>
+            <h3>Đang khôi phục kết nối...</h3>
+            <p style={{ fontSize: 13, opacity: 0.7 }}>Vui lòng đợi trong giây lát</p>
+          </div>
+        </div>
+    );
+  }
 
   return (
     <div className="login-body-wrapper">
