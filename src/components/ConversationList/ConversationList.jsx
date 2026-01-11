@@ -1,8 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Search, UserPlus, Users, X } from "lucide-react";
 import Modal from "../Modal/Modal";
 import useWs from "../../context/useWs";
-import { wsCheckUserExist, wsGetUserList } from "../../api/chatApi";
+import {
+  wsCheckUserExist,
+  wsCheckUserOnline,
+  wsGetUserList,
+} from "../../api/chatApi";
 import "./conversationList.css";
 
 function unwrapServerMessage(message) {
@@ -35,6 +45,15 @@ function waitForEvent(client, targetEvent, { timeoutMs = 8000 } = {}) {
       resolve(unwrapped);
     });
   });
+}
+
+function parseOnlineStatus(unwrapped) {
+  // Common shapes:
+  // { event:'CHECK_USER_ONLINE', status:'success', data:{status:true} }
+  // or { data:{ online:true } }
+  const d = unwrapped?.data ?? {};
+  const v = d.status ?? d.online ?? d.isOnline;
+  return v === true;
 }
 
 function normalizeUserListPayload(payload) {
@@ -123,7 +142,43 @@ const ConversationList = ({
   const [users, setUsers] = useState([]);
   const [listLoading, setListLoading] = useState(false);
 
+  const [onlineMap, setOnlineMap] = useState({});
+  const onlineTsRef = useRef({});
+  const onlineQueueRef = useRef(Promise.resolve());
+
   const effectiveSelectedId = selectedKey ?? selectedId;
+
+  const checkUserOnlineOnce = useCallback(
+    (username) => {
+      const run = async () => {
+        if (!connected) return false;
+
+        try {
+          await wsCheckUserOnline(client, username);
+          const res = await waitForEvent(client, "CHECK_USER_ONLINE", {
+            timeoutMs: 6000,
+          });
+          const isOnline = parseOnlineStatus(res);
+
+          onlineTsRef.current[username] = Date.now();
+          setOnlineMap((prev) => ({
+            ...prev,
+            [username]: isOnline ? "online" : "offline",
+          }));
+          return isOnline;
+        } catch {
+          onlineTsRef.current[username] = Date.now();
+          setOnlineMap((prev) => ({ ...prev, [username]: "offline" }));
+          return false;
+        }
+      };
+
+      // Serialize checks to avoid response mixups.
+      onlineQueueRef.current = onlineQueueRef.current.then(run, run);
+      return onlineQueueRef.current;
+    },
+    [client, connected]
+  );
 
   useEffect(() => {
     if (!connected) return;
@@ -153,17 +208,36 @@ const ConversationList = ({
     return () => off();
   }, [client, connected]);
 
-  const conversationItems = useMemo(() => {
+  const filteredUsers = useMemo(() => {
     const me = (currentUsername ?? "").trim();
-    const filteredUsers = me
+    return me
       ? users.filter((u) => String(u?.id).toLowerCase() !== me.toLowerCase())
       : users;
+  }, [users, currentUsername]);
 
+  const conversationItems = useMemo(() => {
     return {
       rooms,
       users: filteredUsers,
     };
-  }, [rooms, users, currentUsername]);
+  }, [rooms, filteredUsers]);
+
+  // Refresh online status for displayed users (type=people)
+  useEffect(() => {
+    if (!connected) return;
+    const names = (filteredUsers ?? []).map((u) => String(u.id));
+    const now = Date.now();
+    const me = (currentUsername ?? "").trim();
+
+    for (const name of names) {
+      if (me && name.toLowerCase() === me.toLowerCase()) continue;
+
+      const last = onlineTsRef.current[name] ?? 0;
+      if (now - last > 15000) {
+        checkUserOnlineOnce(name);
+      }
+    }
+  }, [connected, filteredUsers, currentUsername, checkUserOnlineOnce]);
 
   // Hàm giả lập tìm kiếm User
   const handleSearchUser = async () => {
@@ -199,6 +273,8 @@ const ConversationList = ({
         return;
       }
 
+      const isOnline = await checkUserOnlineOnce(keyword);
+
       setSearchResults([
         {
           id: keyword,
@@ -206,6 +282,7 @@ const ConversationList = ({
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
             keyword
           )}`,
+          online: isOnline,
         },
       ]);
     } catch {
@@ -330,6 +407,13 @@ const ConversationList = ({
           <div className="conv-section">
             {conversationItems.users.map((item) => {
               const key = `people:${item.id}`;
+              const st = onlineMap?.[String(item.id)];
+              const label =
+                st === "online"
+                  ? "Online"
+                  : st === "offline"
+                  ? "Offline"
+                  : "...";
               return (
                 <div
                   key={key}
@@ -358,7 +442,7 @@ const ConversationList = ({
                       <span className="conv-name">{item.name}</span>
                       <span className="conv-time"></span>
                     </div>
-                    <div className="conv-message">User</div>
+                    <div className="conv-message">{label}</div>
                   </div>
                 </div>
               );
@@ -404,7 +488,13 @@ const ConversationList = ({
                   <img src={user.avatar} className="avatar-small" alt="" />
                   <div className="user-info">
                     <div className="user-name">{user.name}</div>
-                    <div className="user-phone">Người dùng</div>
+                    <div className="user-phone">
+                      {user.online === true
+                        ? "Online"
+                        : user.online === false
+                        ? "Offline"
+                        : "..."}
+                    </div>
                   </div>
 
                   <button
