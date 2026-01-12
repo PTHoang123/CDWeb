@@ -5,13 +5,15 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Search, UserPlus, Users, X } from "lucide-react";
+import { Search, UserPlus, Users, X, LayersPlus } from "lucide-react";
 import Modal from "../Modal/Modal";
 import useWs from "../../context/useWs";
 import {
   wsCheckUserExist,
   wsCheckUserOnline,
   wsGetUserList,
+    wsCreateRoom,
+    wsJoinRoom,
 } from "../../api/chatApi";
 import "./conversationList.css";
 
@@ -141,7 +143,8 @@ const ConversationList = ({
   const [rooms, setRooms] = useState([]);
   const [users, setUsers] = useState([]);
   const [listLoading, setListLoading] = useState(false);
-
+  const [isOpenJoinRoom, setIsOpenJoinRoom] = useState(false);
+  const [joinRoomName, setJoinRoomName] = useState("");
   const [onlineMap, setOnlineMap] = useState({});
   const onlineTsRef = useRef({});
   const onlineQueueRef = useRef(Promise.resolve());
@@ -179,6 +182,36 @@ const ConversationList = ({
     },
     [client, connected]
   );
+
+    // ___ Lắng nghe sự kiện Tạo phòng & Join phòng thành công ___
+    useEffect(() => {
+        if (!connected) return;
+
+        const off = client.on("json", (message) => {
+            const unwrapped = unwrapServerMessage(message);
+
+            // Xử lý khi TẠO hoặc JOIN phòng thành công -> Cập nhật vào danh sách rooms
+            if (
+                (unwrapped.event === "CREATE_ROOM" || unwrapped.event === "JOIN_ROOM") &&
+                unwrapped.status === "success"
+            ) {
+                const roomData = unwrapped.data;
+                const newRoom = {
+                    type: "room", // Định dạng theo chuẩn của Main file
+                    id: String(roomData.id),
+                    name: String(roomData.name),
+                };
+                // Cập nhật state rooms ngay lập tức để hiện lên UI
+                setRooms((prev) => [newRoom, ...prev]);
+
+                // Đóng modal nếu đang mở
+                handleCloseModal();
+            }
+        });
+
+        return () => off();
+    }, [client, connected]);
+    // ___ Két thúc useEffect Lắng nghe sự kiện tạo phòng và join phòng ___
 
   useEffect(() => {
     if (!connected) return;
@@ -239,6 +272,39 @@ const ConversationList = ({
     }
   }, [connected, filteredUsers, currentUsername, checkUserOnlineOnce]);
 
+    // Logic Tạo phòng
+    const handleCreateRoom = async () => {
+        if (!groupName.trim()) return;
+        if (!connected) {
+            alert("Mất kết nối server!");
+            return;
+        }
+
+        try {
+            await wsCreateRoom(client, groupName);
+            // Logic cập nhật UI sẽ được xử lý ở useEffect lắng nghe sự kiện bên trên
+        } catch (error) {
+            console.error("Lỗi tạo phòng:", error);
+            alert("Không thể tạo phòng lúc này.");
+        }
+    };
+
+    // Logic Tham gia phòng
+    const handleJoinRoom = async () => {
+        if (!joinRoomName.trim()) return;
+        if (!connected) {
+            alert("Mất kết nối server!");
+            return;
+        }
+
+        try {
+            await wsJoinRoom(client, joinRoomName);
+        } catch (error) {
+            console.error("Lỗi tham gia phòng:", error);
+        }
+    };
+
+
   // Hàm giả lập tìm kiếm User
   const handleSearchUser = async () => {
     const keyword = searchTerm.trim();
@@ -296,10 +362,12 @@ const ConversationList = ({
   const handleCloseModal = () => {
     setIsOpenAddFriend(false);
     setIsOpenCreateGroup(false);
+    setIsOpenJoinRoom(false);
     setSearchTerm("");
     setSearchResults([]);
     setSearchMessage("");
     setGroupName("");
+    setJoinRoomName("");
     setSelectedUsers([]);
   };
 
@@ -324,6 +392,14 @@ const ConversationList = ({
             className="conv-search-input"
           />
         </div>
+          {/* Nút join room */}
+          <div
+              className="conv-icon-btn"
+              onClick={() => setIsOpenJoinRoom(true)}
+              title="Tham gia phòng"
+          >
+              <LayersPlus size={20}/>
+          </div>
         {/* Bắt sự kiện click mở Modal */}
         <div
           className="conv-icon-btn"
@@ -584,13 +660,44 @@ const ConversationList = ({
           <div className="modal-footer">
             <button
               className="btn-primary full-width"
-              disabled={!groupName || selectedUsers.length < 2}
+              disabled={!groupName}
+              onClick={handleCreateRoom}
             >
-              Tạo nhóm ({selectedUsers.length})
+              Tạo nhóm ({selectedUsers.length > 0 ? `(${selectedUsers.length})` : ""})
             </button>
           </div>
         </div>
       </Modal>
+
+        {/* Modal Tham gia phòng */}
+        <Modal
+            isOpen={isOpenJoinRoom}
+            onClose={handleCloseModal}
+            title="Tham gia phòng chat"
+        >
+            <div className="modal-body-custom">
+                <div className="input-group">
+                    <label>Tên phòng muốn vào</label>
+                    <input
+                        type="text"
+                        className="modal-input"
+                        placeholder="Nhập tên phòng..."
+                        value={joinRoomName}
+                        onChange={(e) => setJoinRoomName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleJoinRoom()}
+                    />
+                </div>
+                <div className="modal-footer">
+                    <button
+                        className="btn-primary full-width"
+                        disabled={!joinRoomName}
+                        onClick={handleJoinRoom}
+                    >
+                        Tham gia ngay
+                    </button>
+                </div>
+            </div>
+        </Modal>
     </div>
   );
 };
