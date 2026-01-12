@@ -37,6 +37,8 @@ const Login = ({ onLoginSuccess, onGoRegister }) => {
       // QUAN TRỌNG: Kiểm tra res có dữ liệu không
       if (res) {
         console.log("Dữ liệu User nhận được:", res);
+        localStorage.setItem("chat_user", finalUser);
+        localStorage.setItem("chat_pass", finalPass);
         onLoginSuccess(res); // Lúc này App.jsx mới nhận được user và chuyển trang
       } else {
         setError("Server trả về dữ liệu trống");

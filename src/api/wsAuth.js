@@ -117,3 +117,40 @@ export async function logoutOverWs(client) {
     console.error("Lỗi khi gửi lệnh logout:", error);
   }
 }
+
+
+// Hàm xử lý Re-Login
+export const reLoginOverWs = (client, user, pass) => {
+    return new Promise((resolve, reject) => {
+        if (!client) return reject(new Error("Socket chưa kết nối"));
+        // Gửi lệnh
+        client.send(JSON.stringify({
+            action: "onchat",
+            data: {
+                event: "RE_LOGIN",
+                data: {
+                    user: user,
+                    code: pass,
+                },
+            },
+        }));
+
+        const timeout = setTimeout(() => {
+            reject(new Error("Timeout: Server không phản hồi"));
+        }, 5000);
+        // Lăng nghe
+        const handleMessage = (response) => {
+            const msgData = response.data || response;
+            if (msgData.event === "RE_LOGIN") {
+                clearTimeout(timeout);
+                if (msgData.status === "success") {
+                    resolve(msgData.data); // Thành công
+                } else {
+                    reject(new Error(msgData.mes || "Thất bại"));
+                }
+            }
+        };
+        client.on("json", handleMessage);
+    });
+};
+
