@@ -13,6 +13,7 @@ import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
 import useWs from "../../context/useWs";
 import { wsCheckUserOnline, wsSendChat } from "../../api/chatApi";
+import ImageGalleryModal from "./ImageGalleryModal"
 
 function unwrapServerMessage(message) {
   const event = message?.event ?? message?.data?.event;
@@ -64,13 +65,14 @@ export default function ChatWindow({
   const nextId = () => String(nextIdRef.current++);
 
   const [presence, setPresence] = useState("unknown"); // online | offline | unknown
+  const [selectedGalleryImg, setSelectedGalleryImg] = useState(null);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
   useEffect(() => {
     if (!connected) {
       queueMicrotask(() => setPresence("unknown"));
       return;
     }
-
     // Only check online status for 1:1 chats
     if (chatType !== "people" || !chatTo) {
       queueMicrotask(() => setPresence("unknown"));
@@ -198,15 +200,18 @@ export default function ChatWindow({
   const handleFileSelect = (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Lặp qua danh sách file đã chọn
       Array.from(files).forEach((file) => {
+        // Tạo URL tạm thời cho file để có thể tải xuống lại ngay lập tức
+        const objectUrl = URL.createObjectURL(file);
+
         const newMessage = {
           id: nextId(),
           side: "right",
-          type: "file", // Đánh dấu là file
+          type: "file",
           content: {
             name: file.name,
-            size: (file.size / 1024).toFixed(1) + " KB", // Tính dung lượng
+            size: (file.size / 1024).toFixed(1) + " KB",
+            url: objectUrl, // <--- QUAN TRỌNG: Lưu URL để tải
           },
           time: new Date().toLocaleTimeString("vi-VN", {
             hour: "2-digit",
@@ -216,7 +221,6 @@ export default function ChatWindow({
         setMessages((prev) => [...prev, newMessage]);
       });
     }
-    // Reset để chọn lại được file cũ nếu muốn
     e.target.value = null;
     setShowAttachMenu(false);
   };
@@ -244,6 +248,33 @@ export default function ChatWindow({
     }
     e.target.value = null;
     setShowAttachMenu(false);
+  };
+
+  // --- HÀM HỖ TRỢ DOWNLOAD ---
+  const triggerDownload = (url, fileName) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownloadClick = (msg) => {
+    if (msg.type === "image") {
+      // Với ảnh, content đang là base64, tải xuống luôn
+      triggerDownload(msg.content, `image_${msg.id}.png`);
+    }
+    else if (msg.type === "file") {
+      // Với file, dùng đường dẫn Blob URL đã tạo lúc upload
+      if (msg.content.url) {
+        triggerDownload(msg.content.url, msg.content.name);
+      }
+    }
+    else if (msg.type === "folder") {
+      // Folder thường phải được Zip từ server mới tải được
+      alert(`Đang yêu cầu server nén thư mục "${msg.content.name}" để tải xuống...`);
+    }
   };
 
   // --- UI RENDER HELPERS ---
@@ -363,6 +394,7 @@ export default function ChatWindow({
 
   return (
     <section className="chatWindow">
+
       <header className="chatWindow__header">
         <div className="chatWindow__header-info">
           <div className="chatWindow__title">{title}</div>
@@ -414,8 +446,11 @@ export default function ChatWindow({
                   <div className="msg-content-wrapper">
                     <img
                         src={m.content}
-                        alt="attachment"
                         className="msg-image-display"
+                        onClick={() => {
+                          setSelectedGalleryImg(m);
+                          setIsGalleryOpen(true);
+                        }}
                     />
                     <div className="msg-time-mini">{m.time}</div>
                   </div>
@@ -428,7 +463,13 @@ export default function ChatWindow({
             return (
                 <div key={m.id} className={`message-group ${m.side}`}>
                   <div className="msg-content-wrapper">
-                    <div className="msg-file-box">
+                    <div
+                        className="msg-file-box"
+                        // Thêm sự kiện click để tải
+                        onClick={() => handleDownloadClick(m)}
+                        style={{ cursor: "pointer" }} // Đổi con trỏ chuột
+                        title="Nhấn để tải file"
+                    >
                       <FileText size={32} color="#0068ff" />
                       <div className="file-info">
                         <div className="file-name">{m.content.name}</div>
@@ -446,7 +487,12 @@ export default function ChatWindow({
             return (
                 <div key={m.id} className={`message-group ${m.side}`}>
                   <div className="msg-content-wrapper">
-                    <div className="msg-file-box">
+                    <div
+                        className="msg-file-box"
+                        onClick={() => handleDownloadClick(m)}
+                        style={{ cursor: "pointer" }}
+                        title="Tải thư mục (Zip)"
+                    >
                       <Folder size={32} color="#f5a623" />
                       <div className="file-info">
                         <div className="file-name">{m.content.name}</div>
@@ -623,6 +669,13 @@ export default function ChatWindow({
           </div>
         </form>
       </footer>
+      <ImageGalleryModal
+          isOpen={isGalleryOpen}
+          onClose={() => setIsGalleryOpen(false)}
+          currentImage={selectedGalleryImg}
+          allMessages={messages} // Truyền toàn bộ tin nhắn để lọc ảnh bên sidebar
+      />
     </section>
+
   );
 }
