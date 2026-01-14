@@ -78,7 +78,7 @@ function AppInner() {
             />
           }
           infochat={
-            showInfo ? <InfoChat user={user} currentName={displayName} /> : null
+            showInfo ? <InfoChat activeChat={activeChat} user={user} currentName={displayName} /> : null
           }
       />
   );

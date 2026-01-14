@@ -88,14 +88,17 @@ const REPO_LINK_GROUPS = [
     }
 ];
 
-export default function InfoChatAndRepo({ user, currentName }) {
+export default function InfoChatAndRepo({  activeChat }) {
     const [activeTab, setActiveTab] = useState('info');
     const [activeRepoTab, setActiveRepoTab] = useState('media');
-
     const [sections, setSections] = useState({
         media: true, files: true, links: true, security: true
     });
-
+    const isRoom = activeChat?.type === 'room';
+    const displayName = activeChat?.name || "Cuộc trò chuyện";
+    const displayAvatar = isRoom
+        ? "https://cdn-icons-png.flaticon.com/512/166/166258.png" // Ảnh mặc định cho Room
+        : "https://gcs.tripi.vn/public-tripi/tripi-feed/img/482752udT/anh-mo-ta.png"; // Ảnh mặc định cho User
     const toggleSection = (key) => {
         setSections(prev => ({ ...prev, [key]: !prev[key] }));
     };
@@ -110,12 +113,12 @@ export default function InfoChatAndRepo({ user, currentName }) {
         <>
             <div className="info-profile">
                 <img
-                    src={user?.avatar || user?.photoURL || "https://gcs.tripi.vn/public-tripi/tripi-feed/img/482752udT/anh-mo-ta.png"}
+                    src={displayAvatar}
                     alt="avatar"
                     className="info-avatar-large"
                 />
                 <div className="info-name-row">
-                    <span>{currentName}</span>
+                    <span>{displayName}</span>
                     <Edit2 size={16} color="#7589a3" style={{ cursor: 'pointer' }} />
                 </div>
 

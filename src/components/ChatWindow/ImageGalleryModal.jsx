@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
     X, Download, Share2, RotateCcw, RotateCw,
     ZoomIn, ZoomOut, ChevronUp, ChevronDown, Calendar
@@ -9,6 +9,15 @@ const ImageGalleryModal = ({ isOpen, onClose, currentImage, allMessages }) => {
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [selectedImg, setSelectedImg] = useState(currentImage);
+
+    useEffect(() => {
+        if (currentImage) {
+            setSelectedImg(currentImage);
+            setZoom(1); // Reset zoom về 1 khi đổi ảnh
+            setRotation(0); // Reset xoay về 0 khi đổi ảnh
+        }
+    }, [currentImage, isOpen]);
+
 
     // Lọc ra tất cả các tin nhắn là ảnh và nhóm theo ngày
     const imageGroups = useMemo(() => {

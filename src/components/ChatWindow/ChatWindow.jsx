@@ -183,8 +183,6 @@ export default function ChatWindow({
           // Cập nhật vào danh sách tin nhắn để hiện lên màn hình ngay
           setMessages((prev) => [...prev, newMessage]);
 
-          // (Nếu sau này bạn muốn gửi qua WebSocket thì gọi hàm gửi ở đây)
-          // wsSendChat(client, ..., "image", base64Image);
         };
 
         // Bắt đầu đọc file
@@ -440,14 +438,18 @@ export default function ChatWindow({
           }
 
           // 2. XỬ LÝ ẢNH (Image)
+          // Trong ChatWindow.jsx, tìm đoạn m.type === "image"
           if (m.type === "image") {
             return (
                 <div key={m.id} className={`message-group ${m.side}`}>
                   <div className="msg-content-wrapper">
                     <img
                         src={m.content}
+                        alt="attachment"
                         className="msg-image-display"
+                        style={{ cursor: "pointer" }}
                         onClick={() => {
+                          // Đảm bảo dùng đúng hàm setState mà bạn khai báo ở đầu file
                           setSelectedGalleryImg(m);
                           setIsGalleryOpen(true);
                         }}
