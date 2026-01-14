@@ -1,21 +1,15 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble.jsx";
+// Thêm FileText, Folder vào dòng này
 import {
-  Smile,
-  Image as ImageIcon,
-  Paperclip,
-  Contact,
-  Scan,
-  Type,
-  Zap,
-  CreditCard,
-  MoreHorizontal,
-  ThumbsUp,
-  Send,
-  Search,
-  PanelRightClose,
-  Sticker,
+  Smile, Image as ImageIcon,
+  Paperclip, Contact, Scan,
+  Type, Zap, CreditCard,
+  MoreHorizontal, ThumbsUp,
+  Send, Search, PanelRightClose, Sticker,
+  FileText, Folder,
 } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
 import useWs from "../../context/useWs";
 import { wsCheckUserOnline, wsSendChat } from "../../api/chatApi";
@@ -200,22 +194,55 @@ export default function ChatWindow({
   };
 
   // 2. Chọn File thường
+  // --- XỬ LÝ FILE (Chọn 1 hoặc nhiều file) ---
   const handleFileSelect = (e) => {
     const files = e.target.files;
-    if (files.length > 0) {
-      console.log("Đã chọn file:", files);
-      alert(`Đã chọn file: ${files[0].name}`);
+    if (files && files.length > 0) {
+      // Lặp qua danh sách file đã chọn
+      Array.from(files).forEach((file) => {
+        const newMessage = {
+          id: nextId(),
+          side: "right",
+          type: "file", // Đánh dấu là file
+          content: {
+            name: file.name,
+            size: (file.size / 1024).toFixed(1) + " KB", // Tính dung lượng
+          },
+          time: new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setMessages((prev) => [...prev, newMessage]);
+      });
     }
+    // Reset để chọn lại được file cũ nếu muốn
+    e.target.value = null;
     setShowAttachMenu(false);
   };
 
   // 3. Chọn Folder
+  // --- XỬ LÝ FOLDER (Upload cả thư mục) ---
   const handleFolderSelect = (e) => {
-    const files = e.target.files; // Trả về list tất cả file trong folder
-    if (files.length > 0) {
-      console.log("Đã chọn folder, tổng số file:", files.length);
-      alert(`Đã chọn folder chứa ${files.length} files.`);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // Folder được tính là 1 tin nhắn gộp
+      const newMessage = {
+        id: nextId(),
+        side: "right",
+        type: "folder", // Đánh dấu là folder
+        content: {
+          name: "Thư mục tải lên", // Tên folder (trình duyệt bảo mật thường chỉ lấy dc tên file con)
+          itemCount: files.length,
+        },
+        time: new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, newMessage]);
     }
+    e.target.value = null;
     setShowAttachMenu(false);
   };
 
@@ -367,31 +394,73 @@ export default function ChatWindow({
       </header>
 
       <div className="chatWindow__body">
-        {messages.map((m) =>
-          m.type === "sticker" ? (
-            <div key={m.id} className={`message-row right`}>
-              <img src={m.content} alt="sticker" className="sticker-img" />
-              <div className="msg-time">{m.time}</div>
-            </div>
-          ) : m.type === "image" ? (
-            <div key={m.id} className={`message-row ${m.side}`}>
-              <div className="msg-image-wrapper">
-                <img
-                  src={m.content}
-                  alt="attachment"
-                  style={{
-                    maxWidth: "200px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                  }}
-                />
-              </div>
-              <div className="msg-time">{m.time}</div>
-            </div>
-          ) : (
-            <MessageBubble key={m.id} message={m} />
-          )
-        )}
+        {messages.map((m) => {
+          // 1. XỬ LÝ STICKER
+          if (m.type === "sticker") {
+            return (
+                <div key={m.id} className={`message-group ${m.side}`}>
+                  <div className="msg-content-wrapper">
+                    <img src={m.content} alt="sticker" className="sticker-img" />
+                    <div className="msg-time-mini">{m.time}</div>
+                  </div>
+                </div>
+            );
+          }
+
+          // 2. XỬ LÝ ẢNH (Image)
+          if (m.type === "image") {
+            return (
+                <div key={m.id} className={`message-group ${m.side}`}>
+                  <div className="msg-content-wrapper">
+                    <img
+                        src={m.content}
+                        alt="attachment"
+                        className="msg-image-display"
+                    />
+                    <div className="msg-time-mini">{m.time}</div>
+                  </div>
+                </div>
+            );
+          }
+
+          // 3. XỬ LÝ FILE
+          if (m.type === "file") {
+            return (
+                <div key={m.id} className={`message-group ${m.side}`}>
+                  <div className="msg-content-wrapper">
+                    <div className="msg-file-box">
+                      <FileText size={32} color="#0068ff" />
+                      <div className="file-info">
+                        <div className="file-name">{m.content.name}</div>
+                        <div className="file-meta">{m.content.size}</div>
+                      </div>
+                    </div>
+                    <div className="msg-time-mini">{m.time}</div>
+                  </div>
+                </div>
+            );
+          }
+
+          // 4. XỬ LÝ FOLDER
+          if (m.type === "folder") {
+            return (
+                <div key={m.id} className={`message-group ${m.side}`}>
+                  <div className="msg-content-wrapper">
+                    <div className="msg-file-box">
+                      <Folder size={32} color="#f5a623" />
+                      <div className="file-info">
+                        <div className="file-name">{m.content.name}</div>
+                        <div className="file-meta">{m.content.itemCount} items</div>
+                      </div>
+                    </div>
+                    <div className="msg-time-mini">{m.time}</div>
+                  </div>
+                </div>
+            );
+          }
+          // 5. TIN NHẮN CHỮ THƯỜNG
+          return <MessageBubble key={m.id} message={m} />;
+        })}
         {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
         <div className="chat-popups">
           {/* 1. Emoji Picker */}
@@ -462,18 +531,18 @@ export default function ChatWindow({
           onChange={handleImageSelect}
         />
         <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          onChange={handleFileSelect}
+            type="file"
+            ref={fileInputRef}
+            multiple
+            style={{ display: "none" }}
+            onChange={handleFileSelect}
         />
         <input
-          type="file"
-          ref={folderInputRef}
-          style={{ display: "none" }}
-          webkitdirectory=""
-          directory=""
-          onChange={handleFolderSelect}
+            type="file"
+            ref={folderInputRef}
+            style={{ display: "none" }}
+            {...{ webkitdirectory: "", directory: "" }}
+            onChange={handleFolderSelect}
         />
         <div className="chat-toolbar">
           <div
