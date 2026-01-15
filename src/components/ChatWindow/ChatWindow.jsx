@@ -1,23 +1,17 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import {
-  Smile,
-  Image as ImageIcon,
-  Paperclip,
-  Contact,
-  Scan,
-  Type,
-  Zap,
-  CreditCard,
-  MoreHorizontal,
-  ThumbsUp,
-  Send,
-  Search,
-  PanelRightClose,
-  Sticker,
+  Smile, Image as ImageIcon,
+  Paperclip, Contact, Scan,
+  Type, Zap, CreditCard,
+  MoreHorizontal, ThumbsUp,
+  Send, Search, PanelRightClose, Sticker,
+  FileText, Folder,
 } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
 import useWs from "../../context/useWs";
+import ImageGalleryModal from "./ImageGalleryModal"
 import {
   wsCheckUserOnline,
   wsGetPeopleChatMes,
@@ -114,6 +108,8 @@ export default function ChatWindow({
   const nextId = () => String(nextIdRef.current++);
 
   const [presence, setPresence] = useState("unknown"); // online | offline | unknown
+  const [selectedGalleryImg, setSelectedGalleryImg] = useState(null);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -122,7 +118,6 @@ export default function ChatWindow({
       queueMicrotask(() => setPresence("unknown"));
       return;
     }
-
     // Only check online status for 1:1 chats
     if (chatType !== "people" || !chatTo) {
       queueMicrotask(() => setPresence("unknown"));
@@ -304,8 +299,6 @@ export default function ChatWindow({
           // Cập nhật vào danh sách tin nhắn để hiện lên màn hình ngay
           setMessages((prev) => [...prev, newMessage]);
 
-          // (Nếu sau này bạn muốn gửi qua WebSocket thì gọi hàm gửi ở đây)
-          // wsSendChat(client, ..., "image", base64Image);
         };
 
         // Bắt đầu đọc file
@@ -317,23 +310,85 @@ export default function ChatWindow({
   };
 
   // 2. Chọn File thường
+  // --- XỬ LÝ FILE (Chọn 1 hoặc nhiều file) ---
   const handleFileSelect = (e) => {
     const files = e.target.files;
-    if (files.length > 0) {
-      console.log("Đã chọn file:", files);
-      alert(`Đã chọn file: ${files[0].name}`);
+    if (files && files.length > 0) {
+      Array.from(files).forEach((file) => {
+        // Tạo URL tạm thời cho file để có thể tải xuống lại ngay lập tức
+        const objectUrl = URL.createObjectURL(file);
+
+        const newMessage = {
+          id: nextId(),
+          side: "right",
+          type: "file",
+          content: {
+            name: file.name,
+            size: (file.size / 1024).toFixed(1) + " KB",
+            url: objectUrl, // <--- QUAN TRỌNG: Lưu URL để tải
+          },
+          time: new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setMessages((prev) => [...prev, newMessage]);
+      });
     }
+    e.target.value = null;
     setShowAttachMenu(false);
   };
 
   // 3. Chọn Folder
+  // --- XỬ LÝ FOLDER (Upload cả thư mục) ---
   const handleFolderSelect = (e) => {
-    const files = e.target.files; // Trả về list tất cả file trong folder
-    if (files.length > 0) {
-      console.log("Đã chọn folder, tổng số file:", files.length);
-      alert(`Đã chọn folder chứa ${files.length} files.`);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // Folder được tính là 1 tin nhắn gộp
+      const newMessage = {
+        id: nextId(),
+        side: "right",
+        type: "folder", // Đánh dấu là folder
+        content: {
+          name: "Thư mục tải lên", // Tên folder (trình duyệt bảo mật thường chỉ lấy dc tên file con)
+          itemCount: files.length,
+        },
+        time: new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, newMessage]);
     }
+    e.target.value = null;
     setShowAttachMenu(false);
+  };
+
+  // --- HÀM HỖ TRỢ DOWNLOAD ---
+  const triggerDownload = (url, fileName) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownloadClick = (msg) => {
+    if (msg.type === "image") {
+      // Với ảnh, content đang là base64, tải xuống luôn
+      triggerDownload(msg.content, `image_${msg.id}.png`);
+    }
+    else if (msg.type === "file") {
+      // Với file, dùng đường dẫn Blob URL đã tạo lúc upload
+      if (msg.content.url) {
+        triggerDownload(msg.content.url, msg.content.name);
+      }
+    }
+    else if (msg.type === "folder") {
+      // Folder thường phải được Zip từ server mới tải được
+      alert(`Đang yêu cầu server nén thư mục "${msg.content.name}" để tải xuống...`);
+    }
   };
 
   // --- UI RENDER HELPERS ---
@@ -495,6 +550,7 @@ export default function ChatWindow({
 
   return (
     <section className="chatWindow">
+
       <header className="chatWindow__header">
         <div className="chatWindow__header-info">
           <div className="chatWindow__title">{title}</div>
@@ -529,29 +585,68 @@ export default function ChatWindow({
 
       <div className="chatWindow__body">
         {messages.map((m) =>
-          m.type === "sticker" ? (
-            <div key={m.id} className={`message-row right`}>
-              <img src={m.content} alt="sticker" className="sticker-img" />
-              <div className="msg-time">{m.time}</div>
-            </div>
-          ) : m.type === "image" ? (
-            <div key={m.id} className={`message-row ${m.side}`}>
-              <div className="msg-image-wrapper">
-                <img
-                  src={m.content}
-                  alt="attachment"
-                  style={{
-                    maxWidth: "200px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                  }}
-                />
-              </div>
-              <div className="msg-time">{m.time}</div>
-            </div>
-          ) : (
-            <MessageBubble key={m.id} message={m} />
-          )
+            m.type === "sticker" ? (
+                <div key={m.id} className={`message-row right`}>
+                  <img src={m.content} alt="sticker" className="sticker-img" />
+                  <div className="msg-time">{m.time}</div>
+                </div>
+            ) : m.type === "image" ? (
+                <div key={m.id} className={`message-group ${m.side}`}>
+                  <div className="msg-content-wrapper">
+                    <img
+                        src={m.content}
+                        alt="attachment"
+                        className="msg-image-display"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => {
+                          // Đảm bảo dùng đúng hàm setState mà bạn khai báo ở đầu file
+                          setSelectedGalleryImg(m);
+                          setIsGalleryOpen(true);
+                        }}
+                    />
+                    <div className="msg-time-mini">{m.time}</div>
+                  </div>
+                </div>
+            ) : m.type === "file" ? (
+                <div key={m.id} className={`message-group ${m.side}`}>
+                  <div className="msg-content-wrapper">
+                    <div
+                        className="msg-file-box"
+                        // Thêm sự kiện click để tải
+                        onClick={() => handleDownloadClick(m)}
+                        style={{ cursor: "pointer" }} // Đổi con trỏ chuột
+                        title="Nhấn để tải file"
+                    >
+                      <FileText size={32} color="#0068ff" />
+                      <div className="file-info">
+                        <div className="file-name">{m.content.name}</div>
+                        <div className="file-meta">{m.content.size}</div>
+                      </div>
+                    </div>
+                    <div className="msg-time-mini">{m.time}</div>
+                  </div>
+                </div>
+            ) : m.type === "folder" ? (
+                <div key={m.id} className={`message-group ${m.side}`}>
+                  <div className="msg-content-wrapper">
+                    <div
+                        className="msg-file-box"
+                        onClick={() => handleDownloadClick(m)}
+                        style={{ cursor: "pointer" }}
+                        title="Tải thư mục (Zip)"
+                    >
+                      <Folder size={32} color="#f5a623" />
+                      <div className="file-info">
+                        <div className="file-name">{m.content.name}</div>
+                        <div className="file-meta">{m.content.itemCount} items</div>
+                      </div>
+                    </div>
+                    <div className="msg-time-mini">{m.time}</div>
+                  </div>
+                </div>
+            ) : (
+                <MessageBubble key={m.id} message={m} />
+            )
         )}
         {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
         <div className="chat-popups">
@@ -623,18 +718,18 @@ export default function ChatWindow({
           onChange={handleImageSelect}
         />
         <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          onChange={handleFileSelect}
+            type="file"
+            ref={fileInputRef}
+            multiple
+            style={{ display: "none" }}
+            onChange={handleFileSelect}
         />
         <input
-          type="file"
-          ref={folderInputRef}
-          style={{ display: "none" }}
-          webkitdirectory=""
-          directory=""
-          onChange={handleFolderSelect}
+            type="file"
+            ref={folderInputRef}
+            style={{ display: "none" }}
+            {...{ webkitdirectory: "", directory: "" }}
+            onChange={handleFolderSelect}
         />
         <div className="chat-toolbar">
           <div
@@ -715,6 +810,13 @@ export default function ChatWindow({
           </div>
         </form>
       </footer>
+      <ImageGalleryModal
+          isOpen={isGalleryOpen}
+          onClose={() => setIsGalleryOpen(false)}
+          currentImage={selectedGalleryImg}
+          allMessages={messages} // Truyền toàn bộ tin nhắn để lọc ảnh bên sidebar
+      />
     </section>
+
   );
 }

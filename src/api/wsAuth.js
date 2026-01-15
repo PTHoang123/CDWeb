@@ -41,6 +41,7 @@ export async function loginOverWs(
 
       if (response.status === "success") {
         resolve({
+          ...response.data,
           username,
           RE_LOGIN_CODE: response?.data?.RE_LOGIN_CODE,
         });
