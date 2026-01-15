@@ -39,6 +39,7 @@ export async function loginOverWs(
             done = true;
             off();
 
+
             if (response.status === "success") {
                 resolve({
                     username,
