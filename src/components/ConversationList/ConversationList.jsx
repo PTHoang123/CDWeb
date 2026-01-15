@@ -142,6 +142,8 @@ const ConversationList = ({
   const [users, setUsers] = useState([]);
   const [listLoading, setListLoading] = useState(false);
 
+  const refreshTimerRef = useRef(null);
+
   const [onlineMap, setOnlineMap] = useState({});
   const onlineTsRef = useRef({});
   const onlineQueueRef = useRef(Promise.resolve());
@@ -207,6 +209,92 @@ const ConversationList = ({
 
     return () => off();
   }, [client, connected]);
+
+  const requestUserListRefresh = useCallback(
+    (delayMs = 250) => {
+      if (!connected) return;
+
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+
+      refreshTimerRef.current = setTimeout(() => {
+        setListLoading(true);
+        wsGetUserList(client).catch(() => {
+          setListLoading(false);
+        });
+      }, delayMs);
+    },
+    [client, connected]
+  );
+
+  // When a new message arrives, ensure the peer/room appears in the list.
+  useEffect(() => {
+    if (!connected) return;
+
+    const off = client.on("json", (payload) => {
+      // Heuristic: pushed chat usually includes mes.
+      const mes = payload?.data?.mes ?? payload?.mes;
+      if (!mes) return;
+
+      const type = payload?.data?.type ?? payload?.type;
+      const from = payload?.data?.from ?? payload?.from ?? payload?.data?.user;
+      const to = payload?.data?.to ?? payload?.to;
+
+      if (type === "people") {
+        const peer = String(from ?? "").trim();
+        if (!peer) return;
+        const me = String(currentUsername ?? "").trim();
+        if (me && peer.toLowerCase() === me.toLowerCase()) return;
+
+        setUsers((prev) => {
+          const exists = (prev ?? []).some(
+            (u) => String(u?.id).toLowerCase() === peer.toLowerCase()
+          );
+          if (exists) return prev;
+          return [...(prev ?? []), { type: "people", id: peer, name: peer }];
+        });
+
+        // Ask server for canonical list as well (covers servers that only
+        // add conversations after first message).
+        requestUserListRefresh(300);
+      }
+
+      if (type === "room") {
+        const roomName = String(to ?? "").trim();
+        if (!roomName) return;
+        setRooms((prev) => {
+          const exists = (prev ?? []).some(
+            (r) => String(r?.id).toLowerCase() === roomName.toLowerCase()
+          );
+          if (exists) return prev;
+          return [
+            ...(prev ?? []),
+            { type: "room", id: roomName, name: roomName },
+          ];
+        });
+        requestUserListRefresh(300);
+      }
+    });
+
+    return () => off();
+  }, [client, connected, currentUsername, requestUserListRefresh]);
+
+  // Periodic refresh so both clients stay in sync with server-side GET_USER_LIST.
+  useEffect(() => {
+    if (!connected) return;
+    const t = setInterval(() => requestUserListRefresh(0), 15000);
+    return () => clearInterval(t);
+  }, [connected, requestUserListRefresh]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const filteredUsers = useMemo(() => {
     const me = (currentUsername ?? "").trim();
