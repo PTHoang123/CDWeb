@@ -18,7 +18,13 @@ import {
 } from "lucide-react";
 import "./chatWindow.css";
 import useWs from "../../context/useWs";
-import { wsCheckUserOnline, wsSendChat } from "../../api/chatApi";
+import {
+  wsCheckUserOnline,
+  wsGetPeopleChatMes,
+  wsGetRoomChatMes,
+  wsJoinRoom,
+  wsSendChat,
+} from "../../api/chatApi";
 
 function unwrapServerMessage(message) {
   const event = message?.event ?? message?.data?.event;
@@ -56,6 +62,43 @@ function waitForEvent(client, targetEvent, { timeoutMs = 6000 } = {}) {
   });
 }
 
+function extractHistoryList(unwrapped) {
+  const d = unwrapped?.data;
+  if (Array.isArray(d)) return d;
+  if (Array.isArray(d?.data)) return d.data;
+  if (Array.isArray(d?.list)) return d.list;
+  if (Array.isArray(d?.messages)) return d.messages;
+  if (Array.isArray(d?.mes)) return d.mes;
+  return [];
+}
+
+function normalizeHistoryItem(item) {
+  if (item == null) return { content: "" };
+  if (typeof item === "string" || typeof item === "number") {
+    return { content: String(item) };
+  }
+
+  const content =
+    item.mes ??
+    item.message ??
+    item.content ??
+    item.text ??
+    item.msg ??
+    (typeof item === "object" ? JSON.stringify(item) : String(item));
+
+  const author =
+    item.from ??
+    item.user ??
+    item.sender ??
+    item.name ??
+    item.username ??
+    item.author;
+
+  const time = item.time ?? item.actionTime ?? item.createdAt ?? item.date;
+
+  return { content: String(content ?? ""), author, time };
+}
+
 export default function ChatWindow({
   title = "Chat",
   initialMessages,
@@ -63,6 +106,7 @@ export default function ChatWindow({
   // choose where to send
   chatType = "room", // 'room' | 'people'
   chatTo = "ABC",
+  currentUsername,
 }) {
   const { client, connected } = useWs();
 
@@ -70,6 +114,8 @@ export default function ChatWindow({
   const nextId = () => String(nextIdRef.current++);
 
   const [presence, setPresence] = useState("unknown"); // online | offline | unknown
+
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (!connected) {
@@ -103,26 +149,97 @@ export default function ChatWindow({
   }, [client, connected, chatType, chatTo]);
 
   const [text, setText] = useState("");
-  const [messages, setMessages] = useState(
-    () =>
-      initialMessages ?? [
-        {
-          id: "m1",
-          side: "left",
-          author: "Huy lofi",
-          content: "Tôi bị ngu",
-          time: "20:28",
-        },
-        {
-          id: "m2",
-          side: "left",
-          author: "Hải Bánh",
-          content: "chim tao bé",
-          time: "20:28",
-        },
-        { id: "m3", side: "right", content: "ahihi", time: "20:28" },
-      ]
-  );
+  const [messages, setMessages] = useState(() => initialMessages ?? []);
+
+  // Load chat history when switching conversation
+  useEffect(() => {
+    if (!connected) return;
+    if (!chatType || !chatTo) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setHistoryLoading(true);
+        setMessages([]);
+
+        if (chatType === "room") {
+          // phải join room trước khi lấy lịch sử
+          await wsJoinRoom(client, chatTo);
+          await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 }).catch(
+            () => {}
+          );
+
+          await wsGetRoomChatMes(client, chatTo, 1);
+          const res = await waitForEvent(client, "GET_ROOM_CHAT_MES", {
+            timeoutMs: 8000,
+          });
+          const list = extractHistoryList(res);
+          const mapped = list.map((raw) => {
+            const { content, author, time } = normalizeHistoryItem(raw);
+            const side =
+              currentUsername && author && author === currentUsername
+                ? "right"
+                : "left";
+            return {
+              id: nextId(),
+              side,
+              author,
+              content,
+              time:
+                typeof time === "string"
+                  ? time
+                  : new Date().toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+            };
+          });
+
+          if (!cancelled) setMessages(mapped);
+          return;
+        }
+
+        if (chatType === "people") {
+          await wsGetPeopleChatMes(client, chatTo, 1);
+          const res = await waitForEvent(client, "GET_PEOPLE_CHAT_MES", {
+            timeoutMs: 8000,
+          });
+          const list = extractHistoryList(res);
+          const mapped = list.map((raw) => {
+            const { content, author, time } = normalizeHistoryItem(raw);
+            const side =
+              currentUsername && author && author === currentUsername
+                ? "right"
+                : "left";
+            return {
+              id: nextId(),
+              side,
+              author,
+              content,
+              time:
+                typeof time === "string"
+                  ? time
+                  : new Date().toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+            };
+          });
+
+          if (!cancelled) setMessages(mapped);
+        }
+      } catch {
+        if (!cancelled) setMessages([]);
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, connected, chatType, chatTo, currentUsername]);
 
   // --- States quản lý hiển thị Popup ---
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -254,17 +371,53 @@ export default function ChatWindow({
   // Receive messages from server (depends on what server pushes)
   useEffect(() => {
     const off = client.on("json", (payload) => {
-      // Heuristic: if server pushes a chat message it usually contains mes
+      const unwrapped = unwrapServerMessage(payload);
+
+      // Ignore responses for history and other request/response events.
+      if (
+        unwrapped?.event === "GET_ROOM_CHAT_MES" ||
+        unwrapped?.event === "GET_PEOPLE_CHAT_MES" ||
+        unwrapped?.event === "GET_USER_LIST" ||
+        unwrapped?.event === "CHECK_USER_ONLINE" ||
+        unwrapped?.event === "CHECK_USER_EXIST" ||
+        unwrapped?.event === "JOIN_ROOM"
+      ) {
+        return;
+      }
+
       const mes = payload?.data?.mes ?? payload?.mes;
       if (!mes) return;
 
-      const from = payload?.data?.from ?? payload?.from ?? payload?.data?.user;
+      const payloadType = payload?.data?.type ?? payload?.type;
+      const payloadTo = payload?.data?.to ?? payload?.to ?? payload?.data?.room;
+      const from =
+        payload?.data?.from ??
+        payload?.from ??
+        payload?.data?.user ??
+        payload?.user;
+
+      // Filter incoming messages to the active chat
+      if (chatType === "room") {
+        if (payloadType && payloadType !== "room") return;
+        if (payloadTo && payloadTo !== chatTo) return;
+      }
+      if (chatType === "people") {
+        if (payloadType && payloadType !== "people") return;
+        const matchesPeer =
+          (from && from === chatTo) ||
+          (payloadTo && payloadTo === chatTo) ||
+          (from && currentUsername && from === currentUsername);
+        if (!matchesPeer) return;
+      }
 
       setMessages((prev) => [
         ...prev,
         {
           id: nextId(),
-          side: "left",
+          side:
+            currentUsername && from && from === currentUsername
+              ? "right"
+              : "left",
           author: from || "Unknown",
           content: String(mes),
           time: new Date().toLocaleTimeString([], {
@@ -276,7 +429,7 @@ export default function ChatWindow({
     });
 
     return () => off();
-  }, [client]);
+  }, [client, chatType, chatTo, currentUsername]);
 
   const canSend = useMemo(() => text.trim().length > 0, [text]);
 
@@ -304,6 +457,12 @@ export default function ChatWindow({
 
     // send using your protocol
     try {
+      if (chatType === "room" && chatTo) {
+        await wsJoinRoom(client, chatTo);
+        await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 }).catch(
+          () => {}
+        );
+      }
       await wsSendChat(client, { type: chatType, to: chatTo, mes });
     } catch {
       // optional: mark as failed
@@ -342,6 +501,8 @@ export default function ChatWindow({
           <div className="chatWindow__subtitle">
             {!connected
               ? "Connecting..."
+              : historyLoading
+              ? "Loading..."
               : chatType === "people"
               ? presence === "online"
                 ? "Online"
