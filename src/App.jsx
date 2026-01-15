@@ -75,6 +75,7 @@ function AppInner() {
           onToggleInfo={() => setShowInfo(!showInfo)}
           chatType={activeChat?.type ?? "room"}
           chatTo={activeChat?.to ?? "36"}
+          currentUsername={user?.username}
         />
       }
       infochat={
