@@ -71,3 +71,20 @@
 .msg--right .msg__time {
   text-align: right;
 }
+
+.msg__link {
+  color: inherit; /* Giữ màu chữ hiện tại hoặc đổi màu khác */
+  text-decoration: underline;
+  word-break: break-all; /* Xuống dòng nếu link quá dài */
+  font-weight: 500;
+}
+
+/* Nếu bubble bên phải màu xanh đậm, link nên có màu sáng */
+.msg--right .msg__link {
+  color: #0068ff; /* Màu xanh nhạt */
+}
+
+/* Nếu bubble bên trái màu xám/trắng, link nên có màu xanh đậm */
+.msg--left .msg__link {
+  color: #0068ff; /* Màu xanh dương */
+}

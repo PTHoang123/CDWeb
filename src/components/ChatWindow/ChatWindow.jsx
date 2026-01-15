@@ -51,12 +51,13 @@ function waitForEvent(client, targetEvent, { timeoutMs = 6000 } = {}) {
 }
 
 export default function ChatWindow({
+
   title = "Chat",
   initialMessages,
   onToggleInfo,
-  // choose where to send
   chatType = "room", // 'room' | 'people'
   chatTo = "ABC",
+                                     // onMessagesUpdate,
 }) {
   const { client, connected } = useWs();
 
@@ -66,6 +67,14 @@ export default function ChatWindow({
   const [presence, setPresence] = useState("unknown"); // online | offline | unknown
   const [selectedGalleryImg, setSelectedGalleryImg] = useState(null);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  // const [messages, setMessages] = useState([]);
+
+  // useEffect(() => {
+  //   if (onMessagesUpdate) {
+  //     onMessagesUpdate(messages);
+  //   }
+  // }, [messages, onMessagesUpdate]);
+
 
   useEffect(() => {
     if (!connected) {
@@ -77,6 +86,7 @@ export default function ChatWindow({
       queueMicrotask(() => setPresence("unknown"));
       return;
     }
+
 
     let cancelled = false;
     (async () => {

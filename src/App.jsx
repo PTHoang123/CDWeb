@@ -25,6 +25,7 @@ function AppInner() {
     name: "Anh em 36",
     key: "room:36",
   });
+  const [sharedMessages, setSharedMessages] = useState([]);
 
   // --- [SỬA ĐỔI QUAN TRỌNG: LOGOUT] ---
   const handleLogout = () => {
@@ -75,10 +76,17 @@ function AppInner() {
                 onToggleInfo={() => setShowInfo(!showInfo)}
                 chatType={activeChat?.type ?? "room"}
                 chatTo={activeChat?.to ?? "36"}
+
+                onMessagesUpdate={(msgs) => setSharedMessages(msgs)}
             />
           }
           infochat={
-            showInfo ? <InfoChat activeChat={activeChat} user={user} currentName={displayName} /> : null
+            showInfo ? <InfoChat
+                activeChat={activeChat}
+                user={user}
+                currentName={displayName}
+                allMessages={sharedMessages}
+            /> : null
           }
       />
   );

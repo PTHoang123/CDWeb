@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Bell, Pin, Users, Edit2, ChevronDown, ChevronLeft,
     Search, Folder, FileText, FileCode, Link as LinkIcon,
-    MoreHorizontal, Clock, EyeOff, AlertTriangle, Trash2
+    MoreHorizontal, Clock, EyeOff, AlertTriangle, Trash2,
 } from 'lucide-react';
 import './InfoChatAndRepo.css';
 
