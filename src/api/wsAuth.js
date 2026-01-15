@@ -1,101 +1,102 @@
-import { wsRelogin, wsLogout } from "./chatApi";
+import {wsRelogin, wsLogout} from "./chatApi";
 
 // WebSocket-based authentication using the shared WsClient
 
 export async function loginOverWs(
-  client,
-  username,
-  password,
-  { timeoutMs = 10000 } = {}
+    client,
+    username,
+    password,
+    {timeoutMs = 10000} = {}
 ) {
-  const request = {
-    action: "onchat",
-    data: {
-      event: "LOGIN",
-      data: {
-        user: username,
-        pass: password,
-      },
-    },
-  };
+    const request = {
+        action: "onchat",
+        data: {
+            event: "LOGIN",
+            data: {
+                user: username,
+                pass: password,
+            },
+        },
+    };
 
-  return new Promise((resolve, reject) => {
-    let done = false;
+    return new Promise((resolve, reject) => {
+        let done = false;
 
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      off();
-      reject(new Error("Login timeout"));
-    }, timeoutMs);
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            off();
+            reject(new Error("Login timeout"));
+        }, timeoutMs);
 
-    const off = client.on("json", (response) => {
-      // Observed response format:
-      // { event: 'LOGIN', status: 'success', data: { RE_LOGIN_CODE: '...' } }
-      if (response?.event !== "LOGIN") return;
+        const off = client.on("json", (response) => {
+            // Observed response format:
+            // { event: 'LOGIN', status: 'success', data: { RE_LOGIN_CODE: '...' } }
+            if (response?.event !== "LOGIN") return;
 
-      clearTimeout(timer);
-      if (done) return;
-      done = true;
-      off();
+            clearTimeout(timer);
+            if (done) return;
+            done = true;
+            off();
 
-      if (response.status === "success") {
-        resolve({
-          username,
-          RE_LOGIN_CODE: response?.data?.RE_LOGIN_CODE,
+            if (response.status === "success") {
+                resolve({
+                    username,
+                    RE_LOGIN_CODE: response?.data?.RE_LOGIN_CODE,
+                });
+            } else {
+                reject(new Error(response.mes || "Đăng nhập thất bại"));
+            }
         });
-      } else {
-        reject(new Error(response.mes || "Đăng nhập thất bại"));
-      }
-    });
 
-    client.sendJson(request).catch(() => {
-      clearTimeout(timer);
-      if (done) return;
-      done = true;
-      off();
-      reject(new Error("Không thể kết nối đến server"));
+        client.sendJson(request).catch(() => {
+            clearTimeout(timer);
+            if (done) return;
+            done = true;
+            off();
+            reject(new Error("Không thể kết nối đến server"));
+        });
     });
-  });
 }
 
+// Hàm xử lý relogin
 export async function reloginOverWs(
-  client,
-  username,
-  code,
-  { timeoutMs = 10000 } = {}
+    client,
+    username,
+    code,
+    {timeoutMs = 10000} = {}
 ) {
-  // Send RE_LOGIN
-  await wsRelogin(client, username, code);
+    // Send RE_LOGIN
+    await wsRelogin(client, username, code);
 
-  // Wait for any server confirmation. Your docs do not show the response event,
-  // so we resolve on first non-error response that references RE_LOGIN.
-  return new Promise((resolve, reject) => {
-    let done = false;
+    // Wait for any server confirmation. Your docs do not show the response event,
+    // so we resolve on first non-error response that references RE_LOGIN.
+    return new Promise((resolve, reject) => {
+        let done = false;
 
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      off();
-      reject(new Error("Re-login timeout"));
-    }, timeoutMs);
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            off();
+            reject(new Error("Re-login timeout"));
+        }, timeoutMs);
 
-    const off = client.on("json", (response) => {
-      const ev = response?.event;
-      if (ev !== "RE_LOGIN" && ev !== "LOGIN") return;
+        const off = client.on("json", (response) => {
+            const ev = response?.event;
+            if (ev !== "RE_LOGIN" && ev !== "LOGIN") return;
 
-      clearTimeout(timer);
-      if (done) return;
-      done = true;
-      off();
+            clearTimeout(timer);
+            if (done) return;
+            done = true;
+            off();
 
-      if (response?.status && response.status !== "success") {
-        reject(new Error(response.mes || "Re-login failed"));
-      } else {
-        resolve(response);
-      }
+            if (response?.status && response.status !== "success") {
+                reject(new Error(response.mes || "Re-login failed"));
+            } else {
+                resolve(response);
+            }
+        });
     });
-  });
 }
 
 /**
@@ -104,53 +105,19 @@ export async function reloginOverWs(
  * 2. (Tuỳ chọn) Đóng kết nối nếu cần thiết kế bảo mật cao, nhưng thường chat app giữ kết nối để login lại nhanh.
  */
 export async function logoutOverWs(client) {
-  if (!client || !client.isOpen()) {
-    console.warn("Client chưa kết nối, chỉ thực hiện logout ở Client.");
-    return;
-  }
+    if (!client || !client.isOpen()) {
+        console.warn("Client chưa kết nối, chỉ thực hiện logout ở Client.");
+        return;
+    }
 
-  try {
-    // Gọi hàm wsLogout đã có sẵn trong chatApi.js
-    await wsLogout(client);
-    console.log("Đã gửi lệnh LOGOUT lên Server");
-  } catch (error) {
-    console.error("Lỗi khi gửi lệnh logout:", error);
-  }
+    try {
+        // Gọi hàm wsLogout đã có sẵn trong chatApi.js
+        await wsLogout(client);
+        console.log("Đã gửi lệnh LOGOUT lên Server");
+    } catch (error) {
+        console.error("Lỗi khi gửi lệnh logout:", error);
+    }
 }
 
 
-// Hàm xử lý Re-Login
-export const reLoginOverWs = (client, user, pass) => {
-    return new Promise((resolve, reject) => {
-        if (!client) return reject(new Error("Socket chưa kết nối"));
-        // Gửi lệnh
-        client.send(JSON.stringify({
-            action: "onchat",
-            data: {
-                event: "RE_LOGIN",
-                data: {
-                    user: user,
-                    code: pass,
-                },
-            },
-        }));
-
-        const timeout = setTimeout(() => {
-            reject(new Error("Timeout: Server không phản hồi"));
-        }, 5000);
-        // Lăng nghe
-        const handleMessage = (response) => {
-            const msgData = response.data || response;
-            if (msgData.event === "RE_LOGIN") {
-                clearTimeout(timeout);
-                if (msgData.status === "success") {
-                    resolve(msgData.data); // Thành công
-                } else {
-                    reject(new Error(msgData.mes || "Thất bại"));
-                }
-            }
-        };
-        client.on("json", handleMessage);
-    });
-};
 

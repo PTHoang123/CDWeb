@@ -253,6 +253,7 @@ export default function ChatWindow({
 
   // Receive messages from server (depends on what server pushes)
   useEffect(() => {
+    if (!client) return;
     const off = client.on("json", (payload) => {
       // Heuristic: if server pushes a chat message it usually contains mes
       const mes = payload?.data?.mes ?? payload?.mes;
