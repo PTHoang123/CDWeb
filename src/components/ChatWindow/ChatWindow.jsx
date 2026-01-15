@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble.jsx";
-// Thêm FileText, Folder vào dòng này
 import {
   Smile, Image as ImageIcon,
   Paperclip, Contact, Scan,
@@ -424,23 +423,13 @@ export default function ChatWindow({
       </header>
 
       <div className="chatWindow__body">
-        {messages.map((m) => {
-          // 1. XỬ LÝ STICKER
-          if (m.type === "sticker") {
-            return (
-                <div key={m.id} className={`message-group ${m.side}`}>
-                  <div className="msg-content-wrapper">
-                    <img src={m.content} alt="sticker" className="sticker-img" />
-                    <div className="msg-time-mini">{m.time}</div>
-                  </div>
+        {messages.map((m) =>
+            m.type === "sticker" ? (
+                <div key={m.id} className={`message-row right`}>
+                  <img src={m.content} alt="sticker" className="sticker-img" />
+                  <div className="msg-time">{m.time}</div>
                 </div>
-            );
-          }
-
-          // 2. XỬ LÝ ẢNH (Image)
-          // Trong ChatWindow.jsx, tìm đoạn m.type === "image"
-          if (m.type === "image") {
-            return (
+            ) : m.type === "image" ? (
                 <div key={m.id} className={`message-group ${m.side}`}>
                   <div className="msg-content-wrapper">
                     <img
@@ -457,12 +446,7 @@ export default function ChatWindow({
                     <div className="msg-time-mini">{m.time}</div>
                   </div>
                 </div>
-            );
-          }
-
-          // 3. XỬ LÝ FILE
-          if (m.type === "file") {
-            return (
+            ) : m.type === "file" ? (
                 <div key={m.id} className={`message-group ${m.side}`}>
                   <div className="msg-content-wrapper">
                     <div
@@ -481,12 +465,7 @@ export default function ChatWindow({
                     <div className="msg-time-mini">{m.time}</div>
                   </div>
                 </div>
-            );
-          }
-
-          // 4. XỬ LÝ FOLDER
-          if (m.type === "folder") {
-            return (
+            ) : m.type === "folder" ? (
                 <div key={m.id} className={`message-group ${m.side}`}>
                   <div className="msg-content-wrapper">
                     <div
@@ -504,11 +483,10 @@ export default function ChatWindow({
                     <div className="msg-time-mini">{m.time}</div>
                   </div>
                 </div>
-            );
-          }
-          // 5. TIN NHẮN CHỮ THƯỜNG
-          return <MessageBubble key={m.id} message={m} />;
-        })}
+            ) : (
+                <MessageBubble key={m.id} message={m} />
+            )
+        )}
         {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
         <div className="chat-popups">
           {/* 1. Emoji Picker */}
