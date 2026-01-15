@@ -1,17 +1,27 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import {
-  Smile, Image as ImageIcon,
-  Paperclip, Contact, Scan,
-  Type, Zap, CreditCard,
-  MoreHorizontal, ThumbsUp,
-  Send, Search, PanelRightClose, Sticker,
-  FileText, Folder,
+  Smile,
+  Image as ImageIcon,
+  Paperclip,
+  Contact,
+  Scan,
+  Type,
+  Zap,
+  CreditCard,
+  MoreHorizontal,
+  ThumbsUp,
+  Send,
+  Search,
+  PanelRightClose,
+  Sticker,
+  FileText,
+  Folder,
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
 import useWs from "../../context/useWs";
-import ImageGalleryModal from "./ImageGalleryModal"
+import ImageGalleryModal from "./ImageGalleryModal";
 import {
   wsCheckUserOnline,
   wsGetPeopleChatMes,
@@ -88,9 +98,31 @@ function normalizeHistoryItem(item) {
     item.username ??
     item.author;
 
-  const time = item.time ?? item.actionTime ?? item.createdAt ?? item.date;
+  const time =
+    item.time ??
+    item.actionTime ??
+    item.createAt ??
+    item.createdAt ??
+    item.date;
 
   return { content: String(content ?? ""), author, time };
+}
+
+function isSameUser(a, b) {
+  const aa = String(a ?? "")
+    .trim()
+    .toLowerCase();
+  const bb = String(b ?? "")
+    .trim()
+    .toLowerCase();
+  return aa !== "" && aa === bb;
+}
+
+function normalizeChatType(v) {
+  // v là type nếu v == 0 hoặc "0" hoặc "people" thì trả về "people" ngược lại trả về "room"
+  if (v === 0 || v === "0" || v === "people") return "people";
+  if (v === 1 || v === "1" || v === "room") return "room";
+  return v;
 }
 
 export default function ChatWindow({
@@ -170,12 +202,18 @@ export default function ChatWindow({
             timeoutMs: 8000,
           });
           const list = extractHistoryList(res);
-          const mapped = list.map((raw) => {
+          // hiển thị theo thứ tự từ cũ đến mới
+          const ordered =
+            list.length >= 2 &&
+            typeof list?.[0]?.id === "number" &&
+            typeof list?.[list.length - 1]?.id === "number" &&
+            list[0].id > list[list.length - 1].id
+              ? [...list].reverse()
+              : list;
+
+          const mapped = ordered.map((raw) => {
             const { content, author, time } = normalizeHistoryItem(raw);
-            const side =
-              currentUsername && author && author === currentUsername
-                ? "right"
-                : "left";
+            const side = isSameUser(author, currentUsername) ? "right" : "left";
             return {
               id: nextId(),
               side,
@@ -201,12 +239,18 @@ export default function ChatWindow({
             timeoutMs: 8000,
           });
           const list = extractHistoryList(res);
-          const mapped = list.map((raw) => {
+          // hiển thị theo thứ tự từ cũ đến mới
+          const ordered =
+            list.length >= 2 &&
+            typeof list?.[0]?.id === "number" &&
+            typeof list?.[list.length - 1]?.id === "number" &&
+            list[0].id > list[list.length - 1].id
+              ? [...list].reverse()
+              : list;
+
+          const mapped = ordered.map((raw) => {
             const { content, author, time } = normalizeHistoryItem(raw);
-            const side =
-              currentUsername && author && author === currentUsername
-                ? "right"
-                : "left";
+            const side = isSameUser(author, currentUsername) ? "right" : "left";
             return {
               id: nextId(),
               side,
@@ -298,7 +342,6 @@ export default function ChatWindow({
 
           // Cập nhật vào danh sách tin nhắn để hiện lên màn hình ngay
           setMessages((prev) => [...prev, newMessage]);
-
         };
 
         // Bắt đầu đọc file
@@ -378,16 +421,16 @@ export default function ChatWindow({
     if (msg.type === "image") {
       // Với ảnh, content đang là base64, tải xuống luôn
       triggerDownload(msg.content, `image_${msg.id}.png`);
-    }
-    else if (msg.type === "file") {
+    } else if (msg.type === "file") {
       // Với file, dùng đường dẫn Blob URL đã tạo lúc upload
       if (msg.content.url) {
         triggerDownload(msg.content.url, msg.content.name);
       }
-    }
-    else if (msg.type === "folder") {
+    } else if (msg.type === "folder") {
       // Folder thường phải được Zip từ server mới tải được
-      alert(`Đang yêu cầu server nén thư mục "${msg.content.name}" để tải xuống...`);
+      alert(
+        `Đang yêu cầu server nén thư mục "${msg.content.name}" để tải xuống...`
+      );
     }
   };
 
@@ -443,13 +486,16 @@ export default function ChatWindow({
       const mes = payload?.data?.mes ?? payload?.mes;
       if (!mes) return;
 
-      const payloadType = payload?.data?.type ?? payload?.type;
+      const payloadType = normalizeChatType(
+        payload?.data?.type ?? payload?.type
+      );
       const payloadTo = payload?.data?.to ?? payload?.to ?? payload?.data?.room;
       const from =
         payload?.data?.from ??
         payload?.from ??
         payload?.data?.user ??
-        payload?.user;
+        payload?.user ??
+        payload?.data?.name;
 
       // Filter incoming messages to the active chat
       if (chatType === "room") {
@@ -469,10 +515,7 @@ export default function ChatWindow({
         ...prev,
         {
           id: nextId(),
-          side:
-            currentUsername && from && from === currentUsername
-              ? "right"
-              : "left",
+          side: isSameUser(from, currentUsername) ? "right" : "left",
           author: from || "Unknown",
           content: String(mes),
           time: new Date().toLocaleTimeString([], {
@@ -550,7 +593,6 @@ export default function ChatWindow({
 
   return (
     <section className="chatWindow">
-
       <header className="chatWindow__header">
         <div className="chatWindow__header-info">
           <div className="chatWindow__title">{title}</div>
@@ -585,68 +627,68 @@ export default function ChatWindow({
 
       <div className="chatWindow__body">
         {messages.map((m) =>
-            m.type === "sticker" ? (
-                <div key={m.id} className={`message-row right`}>
-                  <img src={m.content} alt="sticker" className="sticker-img" />
-                  <div className="msg-time">{m.time}</div>
-                </div>
-            ) : m.type === "image" ? (
-                <div key={m.id} className={`message-group ${m.side}`}>
-                  <div className="msg-content-wrapper">
-                    <img
-                        src={m.content}
-                        alt="attachment"
-                        className="msg-image-display"
-                        style={{ cursor: "pointer" }}
-                        onClick={() => {
-                          // Đảm bảo dùng đúng hàm setState mà bạn khai báo ở đầu file
-                          setSelectedGalleryImg(m);
-                          setIsGalleryOpen(true);
-                        }}
-                    />
-                    <div className="msg-time-mini">{m.time}</div>
+          m.type === "sticker" ? (
+            <div key={m.id} className={`message-row right`}>
+              <img src={m.content} alt="sticker" className="sticker-img" />
+              <div className="msg-time">{m.time}</div>
+            </div>
+          ) : m.type === "image" ? (
+            <div key={m.id} className={`message-group ${m.side}`}>
+              <div className="msg-content-wrapper">
+                <img
+                  src={m.content}
+                  alt="attachment"
+                  className="msg-image-display"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    // Đảm bảo dùng đúng hàm setState mà bạn khai báo ở đầu file
+                    setSelectedGalleryImg(m);
+                    setIsGalleryOpen(true);
+                  }}
+                />
+                <div className="msg-time-mini">{m.time}</div>
+              </div>
+            </div>
+          ) : m.type === "file" ? (
+            <div key={m.id} className={`message-group ${m.side}`}>
+              <div className="msg-content-wrapper">
+                <div
+                  className="msg-file-box"
+                  // Thêm sự kiện click để tải
+                  onClick={() => handleDownloadClick(m)}
+                  style={{ cursor: "pointer" }} // Đổi con trỏ chuột
+                  title="Nhấn để tải file"
+                >
+                  <FileText size={32} color="#0068ff" />
+                  <div className="file-info">
+                    <div className="file-name">{m.content.name}</div>
+                    <div className="file-meta">{m.content.size}</div>
                   </div>
                 </div>
-            ) : m.type === "file" ? (
-                <div key={m.id} className={`message-group ${m.side}`}>
-                  <div className="msg-content-wrapper">
-                    <div
-                        className="msg-file-box"
-                        // Thêm sự kiện click để tải
-                        onClick={() => handleDownloadClick(m)}
-                        style={{ cursor: "pointer" }} // Đổi con trỏ chuột
-                        title="Nhấn để tải file"
-                    >
-                      <FileText size={32} color="#0068ff" />
-                      <div className="file-info">
-                        <div className="file-name">{m.content.name}</div>
-                        <div className="file-meta">{m.content.size}</div>
-                      </div>
-                    </div>
-                    <div className="msg-time-mini">{m.time}</div>
+                <div className="msg-time-mini">{m.time}</div>
+              </div>
+            </div>
+          ) : m.type === "folder" ? (
+            <div key={m.id} className={`message-group ${m.side}`}>
+              <div className="msg-content-wrapper">
+                <div
+                  className="msg-file-box"
+                  onClick={() => handleDownloadClick(m)}
+                  style={{ cursor: "pointer" }}
+                  title="Tải thư mục (Zip)"
+                >
+                  <Folder size={32} color="#f5a623" />
+                  <div className="file-info">
+                    <div className="file-name">{m.content.name}</div>
+                    <div className="file-meta">{m.content.itemCount} items</div>
                   </div>
                 </div>
-            ) : m.type === "folder" ? (
-                <div key={m.id} className={`message-group ${m.side}`}>
-                  <div className="msg-content-wrapper">
-                    <div
-                        className="msg-file-box"
-                        onClick={() => handleDownloadClick(m)}
-                        style={{ cursor: "pointer" }}
-                        title="Tải thư mục (Zip)"
-                    >
-                      <Folder size={32} color="#f5a623" />
-                      <div className="file-info">
-                        <div className="file-name">{m.content.name}</div>
-                        <div className="file-meta">{m.content.itemCount} items</div>
-                      </div>
-                    </div>
-                    <div className="msg-time-mini">{m.time}</div>
-                  </div>
-                </div>
-            ) : (
-                <MessageBubble key={m.id} message={m} />
-            )
+                <div className="msg-time-mini">{m.time}</div>
+              </div>
+            </div>
+          ) : (
+            <MessageBubble key={m.id} message={m} />
+          )
         )}
         {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
         <div className="chat-popups">
@@ -718,18 +760,18 @@ export default function ChatWindow({
           onChange={handleImageSelect}
         />
         <input
-            type="file"
-            ref={fileInputRef}
-            multiple
-            style={{ display: "none" }}
-            onChange={handleFileSelect}
+          type="file"
+          ref={fileInputRef}
+          multiple
+          style={{ display: "none" }}
+          onChange={handleFileSelect}
         />
         <input
-            type="file"
-            ref={folderInputRef}
-            style={{ display: "none" }}
-            {...{ webkitdirectory: "", directory: "" }}
-            onChange={handleFolderSelect}
+          type="file"
+          ref={folderInputRef}
+          style={{ display: "none" }}
+          {...{ webkitdirectory: "", directory: "" }}
+          onChange={handleFolderSelect}
         />
         <div className="chat-toolbar">
           <div
@@ -811,12 +853,11 @@ export default function ChatWindow({
         </form>
       </footer>
       <ImageGalleryModal
-          isOpen={isGalleryOpen}
-          onClose={() => setIsGalleryOpen(false)}
-          currentImage={selectedGalleryImg}
-          allMessages={messages} // Truyền toàn bộ tin nhắn để lọc ảnh bên sidebar
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        currentImage={selectedGalleryImg}
+        allMessages={messages} // Truyền toàn bộ tin nhắn để lọc ảnh bên sidebar
       />
     </section>
-
   );
 }
