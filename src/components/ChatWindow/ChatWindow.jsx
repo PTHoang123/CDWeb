@@ -1,18 +1,34 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import {
-  Smile, Image as ImageIcon,
-  Paperclip, Contact, Scan,
-  Type, Zap, CreditCard,
-  MoreHorizontal, ThumbsUp,
-  Send, Search, PanelRightClose, Sticker,
-  FileText, Folder,
+  Smile,
+  Image as ImageIcon,
+  Paperclip,
+  Contact,
+  Scan,
+  Type,
+  Zap,
+  CreditCard,
+  MoreHorizontal,
+  ThumbsUp,
+  Send,
+  Search,
+  PanelRightClose,
+  Sticker,
+  FileText,
+  Folder,
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
 import useWs from "../../context/useWs";
-import { wsCheckUserOnline, wsSendChat } from "../../api/chatApi";
-import ImageGalleryModal from "./ImageGalleryModal"
+import ImageGalleryModal from "./ImageGalleryModal";
+import {
+  wsCheckUserOnline,
+  wsGetPeopleChatMes,
+  wsGetRoomChatMes,
+  wsJoinRoom,
+  wsSendChat,
+} from "../../api/chatApi";
 
 function unwrapServerMessage(message) {
   const event = message?.event ?? message?.data?.event;
@@ -50,14 +66,72 @@ function waitForEvent(client, targetEvent, { timeoutMs = 6000 } = {}) {
   });
 }
 
-export default function ChatWindow({
+function extractHistoryList(unwrapped) {
+  const d = unwrapped?.data;
+  if (Array.isArray(d)) return d;
+  if (Array.isArray(d?.data)) return d.data;
+  if (Array.isArray(d?.list)) return d.list;
+  if (Array.isArray(d?.messages)) return d.messages;
+  if (Array.isArray(d?.mes)) return d.mes;
+  return [];
+}
 
+function normalizeHistoryItem(item) {
+  if (item == null) return { content: "" };
+  if (typeof item === "string" || typeof item === "number") {
+    return { content: String(item) };
+  }
+
+  const content =
+    item.mes ??
+    item.message ??
+    item.content ??
+    item.text ??
+    item.msg ??
+    (typeof item === "object" ? JSON.stringify(item) : String(item));
+
+  const author =
+    item.from ??
+    item.user ??
+    item.sender ??
+    item.name ??
+    item.username ??
+    item.author;
+
+  const time =
+    item.time ??
+    item.actionTime ??
+    item.createAt ??
+    item.createdAt ??
+    item.date;
+
+  return { content: String(content ?? ""), author, time };
+}
+
+function isSameUser(a, b) {
+  const aa = String(a ?? "")
+    .trim()
+    .toLowerCase();
+  const bb = String(b ?? "")
+    .trim()
+    .toLowerCase();
+  return aa !== "" && aa === bb;
+}
+
+function normalizeChatType(v) {
+  // v là type nếu v == 0 hoặc "0" hoặc "people" thì trả về "people" ngược lại trả về "room"
+  if (v === 0 || v === "0" || v === "people") return "people";
+  if (v === 1 || v === "1" || v === "room") return "room";
+  return v;
+}
+
+export default function ChatWindow({
   title = "Chat",
   initialMessages,
   onToggleInfo,
   chatType = "room", // 'room' | 'people'
   chatTo = "ABC",
-                                     // onMessagesUpdate,
+  currentUsername,
 }) {
   const { client, connected } = useWs();
 
@@ -76,6 +150,8 @@ export default function ChatWindow({
   // }, [messages, onMessagesUpdate]);
 
 
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   useEffect(() => {
     if (!connected) {
       queueMicrotask(() => setPresence("unknown"));
@@ -86,7 +162,6 @@ export default function ChatWindow({
       queueMicrotask(() => setPresence("unknown"));
       return;
     }
-
 
     let cancelled = false;
     (async () => {
@@ -108,26 +183,109 @@ export default function ChatWindow({
   }, [client, connected, chatType, chatTo]);
 
   const [text, setText] = useState("");
-  const [messages, setMessages] = useState(
-    () =>
-      initialMessages ?? [
-        {
-          id: "m1",
-          side: "left",
-          author: "Huy lofi",
-          content: "Tôi bị ngu",
-          time: "20:28",
-        },
-        {
-          id: "m2",
-          side: "left",
-          author: "Hải Bánh",
-          content: "chim tao bé",
-          time: "20:28",
-        },
-        { id: "m3", side: "right", content: "ahihi", time: "20:28" },
-      ]
-  );
+  const [messages, setMessages] = useState(() => initialMessages ?? []);
+
+  // Load chat history when switching conversation
+  useEffect(() => {
+    if (!connected) return;
+    if (!chatType || !chatTo) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setHistoryLoading(true);
+        setMessages([]);
+
+        if (chatType === "room") {
+          // phải join room trước khi lấy lịch sử
+          await wsJoinRoom(client, chatTo);
+          await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 }).catch(
+            () => {}
+          );
+
+          await wsGetRoomChatMes(client, chatTo, 1);
+          const res = await waitForEvent(client, "GET_ROOM_CHAT_MES", {
+            timeoutMs: 8000,
+          });
+          const list = extractHistoryList(res);
+          // hiển thị theo thứ tự từ cũ đến mới
+          const ordered =
+            list.length >= 2 &&
+            typeof list?.[0]?.id === "number" &&
+            typeof list?.[list.length - 1]?.id === "number" &&
+            list[0].id > list[list.length - 1].id
+              ? [...list].reverse()
+              : list;
+
+          const mapped = ordered.map((raw) => {
+            const { content, author, time } = normalizeHistoryItem(raw);
+            const side = isSameUser(author, currentUsername) ? "right" : "left";
+            return {
+              id: nextId(),
+              side,
+              author,
+              content,
+              time:
+                typeof time === "string"
+                  ? time
+                  : new Date().toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+            };
+          });
+
+          if (!cancelled) setMessages(mapped);
+          return;
+        }
+
+        if (chatType === "people") {
+          await wsGetPeopleChatMes(client, chatTo, 1);
+          const res = await waitForEvent(client, "GET_PEOPLE_CHAT_MES", {
+            timeoutMs: 8000,
+          });
+          const list = extractHistoryList(res);
+          // hiển thị theo thứ tự từ cũ đến mới
+          const ordered =
+            list.length >= 2 &&
+            typeof list?.[0]?.id === "number" &&
+            typeof list?.[list.length - 1]?.id === "number" &&
+            list[0].id > list[list.length - 1].id
+              ? [...list].reverse()
+              : list;
+
+          const mapped = ordered.map((raw) => {
+            const { content, author, time } = normalizeHistoryItem(raw);
+            const side = isSameUser(author, currentUsername) ? "right" : "left";
+            return {
+              id: nextId(),
+              side,
+              author,
+              content,
+              time:
+                typeof time === "string"
+                  ? time
+                  : new Date().toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+            };
+          });
+
+          if (!cancelled) setMessages(mapped);
+        }
+      } catch {
+        if (!cancelled) setMessages([]);
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, connected, chatType, chatTo, currentUsername]);
 
   // --- States quản lý hiển thị Popup ---
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -271,16 +429,16 @@ export default function ChatWindow({
     if (msg.type === "image") {
       // Với ảnh, content đang là base64, tải xuống luôn
       triggerDownload(msg.content, `image_${msg.id}.png`);
-    }
-    else if (msg.type === "file") {
+    } else if (msg.type === "file") {
       // Với file, dùng đường dẫn Blob URL đã tạo lúc upload
       if (msg.content.url) {
         triggerDownload(msg.content.url, msg.content.name);
       }
-    }
-    else if (msg.type === "folder") {
+    } else if (msg.type === "folder") {
       // Folder thường phải được Zip từ server mới tải được
-      alert(`Đang yêu cầu server nén thư mục "${msg.content.name}" để tải xuống...`);
+      alert(
+        `Đang yêu cầu server nén thư mục "${msg.content.name}" để tải xuống...`
+      );
     }
   };
 
@@ -319,17 +477,53 @@ export default function ChatWindow({
   // Receive messages from server (depends on what server pushes)
   useEffect(() => {
     const off = client.on("json", (payload) => {
-      // Heuristic: if server pushes a chat message it usually contains mes
+      const unwrapped = unwrapServerMessage(payload);
+
+      // Ignore responses for history and other request/response events.
+      if (
+        unwrapped?.event === "GET_ROOM_CHAT_MES" ||
+        unwrapped?.event === "GET_PEOPLE_CHAT_MES" ||
+        unwrapped?.event === "GET_USER_LIST" ||
+        unwrapped?.event === "CHECK_USER_ONLINE" ||
+        unwrapped?.event === "CHECK_USER_EXIST" ||
+        unwrapped?.event === "JOIN_ROOM"
+      ) {
+        return;
+      }
+
       const mes = payload?.data?.mes ?? payload?.mes;
       if (!mes) return;
 
-      const from = payload?.data?.from ?? payload?.from ?? payload?.data?.user;
+      const payloadType = normalizeChatType(
+        payload?.data?.type ?? payload?.type
+      );
+      const payloadTo = payload?.data?.to ?? payload?.to ?? payload?.data?.room;
+      const from =
+        payload?.data?.from ??
+        payload?.from ??
+        payload?.data?.user ??
+        payload?.user ??
+        payload?.data?.name;
+
+      // Filter incoming messages to the active chat
+      if (chatType === "room") {
+        if (payloadType && payloadType !== "room") return;
+        if (payloadTo && payloadTo !== chatTo) return;
+      }
+      if (chatType === "people") {
+        if (payloadType && payloadType !== "people") return;
+        const matchesPeer =
+          (from && from === chatTo) ||
+          (payloadTo && payloadTo === chatTo) ||
+          (from && currentUsername && from === currentUsername);
+        if (!matchesPeer) return;
+      }
 
       setMessages((prev) => [
         ...prev,
         {
           id: nextId(),
-          side: "left",
+          side: isSameUser(from, currentUsername) ? "right" : "left",
           author: from || "Unknown",
           content: String(mes),
           time: new Date().toLocaleTimeString([], {
@@ -341,7 +535,7 @@ export default function ChatWindow({
     });
 
     return () => off();
-  }, [client]);
+  }, [client, chatType, chatTo, currentUsername]);
 
   const canSend = useMemo(() => text.trim().length > 0, [text]);
 
@@ -369,6 +563,12 @@ export default function ChatWindow({
 
     // send using your protocol
     try {
+      if (chatType === "room" && chatTo) {
+        await wsJoinRoom(client, chatTo);
+        await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 }).catch(
+          () => {}
+        );
+      }
       await wsSendChat(client, { type: chatType, to: chatTo, mes });
     } catch {
       // optional: mark as failed
@@ -401,13 +601,14 @@ export default function ChatWindow({
 
   return (
     <section className="chatWindow">
-
       <header className="chatWindow__header">
         <div className="chatWindow__header-info">
           <div className="chatWindow__title">{title}</div>
           <div className="chatWindow__subtitle">
             {!connected
               ? "Connecting..."
+              : historyLoading
+              ? "Loading..."
               : chatType === "people"
               ? presence === "online"
                 ? "Online"
@@ -434,68 +635,68 @@ export default function ChatWindow({
 
       <div className="chatWindow__body">
         {messages.map((m) =>
-            m.type === "sticker" ? (
-                <div key={m.id} className={`message-row right`}>
-                  <img src={m.content} alt="sticker" className="sticker-img" />
-                  <div className="msg-time">{m.time}</div>
-                </div>
-            ) : m.type === "image" ? (
-                <div key={m.id} className={`message-group ${m.side}`}>
-                  <div className="msg-content-wrapper">
-                    <img
-                        src={m.content}
-                        alt="attachment"
-                        className="msg-image-display"
-                        style={{ cursor: "pointer" }}
-                        onClick={() => {
-                          // Đảm bảo dùng đúng hàm setState mà bạn khai báo ở đầu file
-                          setSelectedGalleryImg(m);
-                          setIsGalleryOpen(true);
-                        }}
-                    />
-                    <div className="msg-time-mini">{m.time}</div>
+          m.type === "sticker" ? (
+            <div key={m.id} className={`message-row right`}>
+              <img src={m.content} alt="sticker" className="sticker-img" />
+              <div className="msg-time">{m.time}</div>
+            </div>
+          ) : m.type === "image" ? (
+            <div key={m.id} className={`message-group ${m.side}`}>
+              <div className="msg-content-wrapper">
+                <img
+                  src={m.content}
+                  alt="attachment"
+                  className="msg-image-display"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    // Đảm bảo dùng đúng hàm setState mà bạn khai báo ở đầu file
+                    setSelectedGalleryImg(m);
+                    setIsGalleryOpen(true);
+                  }}
+                />
+                <div className="msg-time-mini">{m.time}</div>
+              </div>
+            </div>
+          ) : m.type === "file" ? (
+            <div key={m.id} className={`message-group ${m.side}`}>
+              <div className="msg-content-wrapper">
+                <div
+                  className="msg-file-box"
+                  // Thêm sự kiện click để tải
+                  onClick={() => handleDownloadClick(m)}
+                  style={{ cursor: "pointer" }} // Đổi con trỏ chuột
+                  title="Nhấn để tải file"
+                >
+                  <FileText size={32} color="#0068ff" />
+                  <div className="file-info">
+                    <div className="file-name">{m.content.name}</div>
+                    <div className="file-meta">{m.content.size}</div>
                   </div>
                 </div>
-            ) : m.type === "file" ? (
-                <div key={m.id} className={`message-group ${m.side}`}>
-                  <div className="msg-content-wrapper">
-                    <div
-                        className="msg-file-box"
-                        // Thêm sự kiện click để tải
-                        onClick={() => handleDownloadClick(m)}
-                        style={{ cursor: "pointer" }} // Đổi con trỏ chuột
-                        title="Nhấn để tải file"
-                    >
-                      <FileText size={32} color="#0068ff" />
-                      <div className="file-info">
-                        <div className="file-name">{m.content.name}</div>
-                        <div className="file-meta">{m.content.size}</div>
-                      </div>
-                    </div>
-                    <div className="msg-time-mini">{m.time}</div>
+                <div className="msg-time-mini">{m.time}</div>
+              </div>
+            </div>
+          ) : m.type === "folder" ? (
+            <div key={m.id} className={`message-group ${m.side}`}>
+              <div className="msg-content-wrapper">
+                <div
+                  className="msg-file-box"
+                  onClick={() => handleDownloadClick(m)}
+                  style={{ cursor: "pointer" }}
+                  title="Tải thư mục (Zip)"
+                >
+                  <Folder size={32} color="#f5a623" />
+                  <div className="file-info">
+                    <div className="file-name">{m.content.name}</div>
+                    <div className="file-meta">{m.content.itemCount} items</div>
                   </div>
                 </div>
-            ) : m.type === "folder" ? (
-                <div key={m.id} className={`message-group ${m.side}`}>
-                  <div className="msg-content-wrapper">
-                    <div
-                        className="msg-file-box"
-                        onClick={() => handleDownloadClick(m)}
-                        style={{ cursor: "pointer" }}
-                        title="Tải thư mục (Zip)"
-                    >
-                      <Folder size={32} color="#f5a623" />
-                      <div className="file-info">
-                        <div className="file-name">{m.content.name}</div>
-                        <div className="file-meta">{m.content.itemCount} items</div>
-                      </div>
-                    </div>
-                    <div className="msg-time-mini">{m.time}</div>
-                  </div>
-                </div>
-            ) : (
-                <MessageBubble key={m.id} message={m} />
-            )
+                <div className="msg-time-mini">{m.time}</div>
+              </div>
+            </div>
+          ) : (
+            <MessageBubble key={m.id} message={m} />
+          )
         )}
         {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
         <div className="chat-popups">
@@ -567,18 +768,18 @@ export default function ChatWindow({
           onChange={handleImageSelect}
         />
         <input
-            type="file"
-            ref={fileInputRef}
-            multiple
-            style={{ display: "none" }}
-            onChange={handleFileSelect}
+          type="file"
+          ref={fileInputRef}
+          multiple
+          style={{ display: "none" }}
+          onChange={handleFileSelect}
         />
         <input
-            type="file"
-            ref={folderInputRef}
-            style={{ display: "none" }}
-            {...{ webkitdirectory: "", directory: "" }}
-            onChange={handleFolderSelect}
+          type="file"
+          ref={folderInputRef}
+          style={{ display: "none" }}
+          {...{ webkitdirectory: "", directory: "" }}
+          onChange={handleFolderSelect}
         />
         <div className="chat-toolbar">
           <div
@@ -660,10 +861,10 @@ export default function ChatWindow({
         </form>
       </footer>
       <ImageGalleryModal
-          isOpen={isGalleryOpen}
-          onClose={() => setIsGalleryOpen(false)}
-          currentImage={selectedGalleryImg}
-          allMessages={messages} // Truyền toàn bộ tin nhắn để lọc ảnh bên sidebar
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        currentImage={selectedGalleryImg}
+        allMessages={messages} // Truyền toàn bộ tin nhắn để lọc ảnh bên sidebar
       />
     </section>
 

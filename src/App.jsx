@@ -49,54 +49,58 @@ function AppInner() {
       return <Register onBackToLogin={() => setAuthPage("login")} />;
     }
     return (
-        <Login
-            onLoginSuccess={(userData) => setUser(userData)}
-            onGoRegister={() => setAuthPage("register")}
-        />
+      <Login
+        onLoginSuccess={(userData) => setUser(userData)}
+        onGoRegister={() => setAuthPage("register")}
+      />
     );
   }
 
   const displayName = user.displayName || user.username || "User";
 
   return (
-      <ChatLayout
-          navigation={<Sidebar user={user} onLogout={handleLogout} />}
-          sidebar={
-            <ConversationList
-                selectedKey={activeChat?.key}
-                onSelectConversation={(c) => setActiveChat(c)}
-                currentUsername={user?.username}
-            />
-          }
-          chat={
-            <ChatWindow
-                title={`Đang chat: ${
-                    activeChat?.name ?? user.username ?? user.displayName ?? "User"
-                }`}
-                onToggleInfo={() => setShowInfo(!showInfo)}
-                chatType={activeChat?.type ?? "room"}
-                chatTo={activeChat?.to ?? "36"}
+    <ChatLayout
+      navigation={<Sidebar user={user} onLogout={handleLogout} />}
+      sidebar={
+        <ConversationList
+          selectedKey={activeChat?.key}
+          onSelectConversation={(c) => setActiveChat(c)}
+          currentUsername={user?.username}
+        />
+      }
+      chat={
+        <ChatWindow
+          title={`Đang chat: ${
+            activeChat?.name ?? user.username ?? user.displayName ?? "User"
+          }`}
+          onToggleInfo={() => setShowInfo(!showInfo)}
+          chatType={activeChat?.type ?? "room"}
+          chatTo={activeChat?.to ?? "36"}
+          // để biết tên hiện tại là ai
+          currentUsername={user?.username}
+          onMessagesUpdate={(msgs) => setSharedMessages(msgs)}
 
-                onMessagesUpdate={(msgs) => setSharedMessages(msgs)}
-            />
-          }
-          infochat={
-            showInfo ? <InfoChat
-                activeChat={activeChat}
-                user={user}
-                currentName={displayName}
-                allMessages={sharedMessages}
-            /> : null
-          }
-      />
+        />
+      }
+      infochat={
+        showInfo ? (
+          <InfoChat
+            activeChat={activeChat}
+            user={user}
+            currentName={displayName}
+            allMessages={sharedMessages}
+          />
+        ) : null
+      }
+    />
   );
 }
 
 function App() {
   return (
-      <WsProvider url={WS_URL}>
-        <AppInner />
-      </WsProvider>
+    <WsProvider url={WS_URL}>
+      <AppInner />
+    </WsProvider>
   );
 }
 
