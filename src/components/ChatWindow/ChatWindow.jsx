@@ -108,6 +108,26 @@ function normalizeHistoryItem(item) {
   return { content: String(content ?? ""), author, time };
 }
 
+const IMGBB_API_KEY = "c071f3f96ce5daa2e26d0706786895b6"; // <--- Nhớ dán Key vào đây
+
+// Hàm upload ảnh lên ImgBB
+const uploadToImgBB = async (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
+  try {
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (data.success) return data.data.url; // Trả về link ảnh
+    throw new Error("Upload thất bại");
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+};
+
 function isSameUser(a, b) {
   const aa = String(a ?? "")
     .trim()
@@ -133,6 +153,7 @@ export default function ChatWindow({
   chatTo = "ABC",
   currentUsername,
 }) {
+
   const { client, connected } = useWs();
 
   const nextIdRef = useRef(1);
@@ -141,13 +162,6 @@ export default function ChatWindow({
   const [presence, setPresence] = useState("unknown"); // online | offline | unknown
   const [selectedGalleryImg, setSelectedGalleryImg] = useState(null);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  // const [messages, setMessages] = useState([]);
-
-  // useEffect(() => {
-  //   if (onMessagesUpdate) {
-  //     onMessagesUpdate(messages);
-  //   }
-  // }, [messages, onMessagesUpdate]);
 
 
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -184,7 +198,11 @@ export default function ChatWindow({
 
   const [text, setText] = useState("");
   const [messages, setMessages] = useState(() => initialMessages ?? []);
-
+  const isImage = (txt) => {
+    if (!txt || typeof txt !== 'string') return false;
+    // Kiểm tra nếu là link từ ImgBB hoặc có đuôi ảnh
+    return txt.includes("ibb.co") || txt.match(/\.(jpeg|jpg|gif|png)$/i) || txt.startsWith("data:image");
+  };
   // Load chat history when switching conversation
   useEffect(() => {
     if (!connected) return;
@@ -221,11 +239,17 @@ export default function ChatWindow({
           const mapped = ordered.map((raw) => {
             const { content, author, time } = normalizeHistoryItem(raw);
             const side = isSameUser(author, currentUsername) ? "right" : "left";
+            let msgType = "text"; // Mặc định là text
+            // Kiểm tra nếu nội dung bắt đầu bằng mã Base64 của ảnh
+            if (isImage(content)) {
+              msgType = "image";
+            }
             return {
               id: nextId(),
               side,
               author,
-              content,
+              content: content,
+              type: msgType,
               time:
                 typeof time === "string"
                   ? time
@@ -258,11 +282,17 @@ export default function ChatWindow({
           const mapped = ordered.map((raw) => {
             const { content, author, time } = normalizeHistoryItem(raw);
             const side = isSameUser(author, currentUsername) ? "right" : "left";
+            let msgType = "text"; // Mặc định là text
+            // Kiểm tra nếu nội dung bắt đầu bằng mã Base64 của ảnh
+            if (isImage(content)) {
+              msgType = "image";
+            }
             return {
               id: nextId(),
               side,
               author,
-              content,
+              type: msgType,
+              content: content,
               time:
                 typeof time === "string"
                   ? time
@@ -321,42 +351,43 @@ export default function ChatWindow({
   };
 
   // --- XỬ LÝ FILE / ẢNH / FOLDER ---
-
-  // 1. Chọn Ảnh
-  // Tìm đến hàm handleImageSelect và thay thế toàn bộ bằng đoạn này:
-  const handleImageSelect = (e) => {
+  const handleImageSelect = async (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Lặp qua từng file ảnh được chọn
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
+      // Thông báo đang xử lý (tùy chọn)
+      console.log("Đang upload ảnh...");
 
-        // Khi đọc xong file, nó sẽ chạy hàm này
-        reader.onload = (event) => {
-          const base64Image = event.target.result; // Đây là chuỗi mã hóa của ảnh
+      for (const file of Array.from(files)) {
+        // 1. Upload file từ máy tính lên ImgBB
+        const imageUrl = await uploadToImgBB(file);
 
-          // Tạo tin nhắn mới dạng ảnh
+        if (imageUrl) {
+          // 2. Có link rồi -> Hiển thị lên UI ngay
           const newMessage = {
-            id: nextId(),
-            side: "right", // Tin nhắn của mình nằm bên phải
-            type: "image", // Đánh dấu là ảnh để hiển thị thẻ img
-            content: base64Image, // Nội dung chính là cái mã ảnh
+            id: Date.now() + Math.random(),
+            side: "right",
+            type: "image",
+            content: imageUrl, // Lưu ý: content giờ là URL
             time: new Date().toLocaleTimeString("vi-VN", {
               hour: "2-digit",
               minute: "2-digit",
             }),
           };
-
-          // Cập nhật vào danh sách tin nhắn để hiện lên màn hình ngay
           setMessages((prev) => [...prev, newMessage]);
 
-        };
-
-        // Bắt đầu đọc file
-        reader.readAsDataURL(file);
-      });
+          // 3. Gửi Link qua Chat Server (Không bao giờ bị văng vì link rất nhẹ)
+          if (client && connected) {
+            wsSendChat(client, {
+              type: chatType,
+              to: chatTo,
+              mes: imageUrl
+            }).catch(err => console.error("Lỗi gửi tin:", err));
+          }
+        } else {
+          alert("Lỗi: Không thể upload ảnh này.");
+        }
+      }
     }
-    // Reset input để chọn lại được cùng 1 ảnh nếu muốn
     e.target.value = null;
   };
 
@@ -427,7 +458,6 @@ export default function ChatWindow({
 
   const handleDownloadClick = (msg) => {
     if (msg.type === "image") {
-      // Với ảnh, content đang là base64, tải xuống luôn
       triggerDownload(msg.content, `image_${msg.id}.png`);
     } else if (msg.type === "file") {
       // Với file, dùng đường dẫn Blob URL đã tạo lúc upload
@@ -441,6 +471,7 @@ export default function ChatWindow({
       );
     }
   };
+
 
   // --- UI RENDER HELPERS ---
   const toggleEmoji = () => {
