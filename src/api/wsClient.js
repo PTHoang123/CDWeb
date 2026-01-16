@@ -25,6 +25,10 @@ export function createWsClient(
 
   const log = (...args) => logger?.(...args);
 
+    const debug = (...args) => {
+        if (logger) logger("[WS]", ...args);
+    };
+
   function emit(type, payload) {
     for (const fn of listeners[type]) {
       try {
@@ -46,6 +50,7 @@ export function createWsClient(
   }
 
   function connect() {
+    debug("CONNECTING TO", url);
     manualClose = false;
     isConnecting = true;
     ws = new WebSocket(url);
@@ -58,16 +63,20 @@ export function createWsClient(
       isConnecting = false;
       attempt = 0;
       openPromiseResolve?.();
+      debug("CONNECTED");
       emit("open");
     };
 
     ws.onmessage = (event) => {
+      debug("RAW MESSAGE", event.data);
       emit("message", event);
       try {
         const data = JSON.parse(event.data);
+        debug("JSON", data);
         emit("json", data);
       } catch {
         // ignore JSON parse errors
+          debug("NON JSON", event.data);
       }
     };
 
@@ -77,13 +86,14 @@ export function createWsClient(
 
     ws.onclose = (event) => {
       isConnecting = false;
+      debug("CLOSED", event.code, event.reason);
       emit("close", event);
 
       // Only auto-reconnect if it wasn't closed manually
       if (!manualClose && reconnect) {
         attempt += 1;
         const delay = computeDelay();
-        log?.("ws reconnect in", delay, "ms");
+        debug("RECONNECT in", delay, "ms");
         setTimeout(() => {
           if (!manualClose) connect();
         }, delay);
@@ -149,6 +159,7 @@ export function createWsClient(
   }
 
   function send(data) {
+    debug("SEND", data);
     if (!ws)
       throw new Error("WebSocket not initialized. Call connect() first.");
     ws.send(data);

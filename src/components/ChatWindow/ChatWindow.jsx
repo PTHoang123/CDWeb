@@ -468,6 +468,7 @@ export default function ChatWindow({
 
   // Receive messages from server (depends on what server pushes)
   useEffect(() => {
+    if (!client) return;
     const off = client.on("json", (payload) => {
       const unwrapped = unwrapServerMessage(payload);
 

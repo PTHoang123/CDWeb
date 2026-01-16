@@ -1,686 +1,692 @@
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
-import { Search, UserPlus, Users, X } from "lucide-react";
+import { Search, UserPlus, Users, LayersPlus } from "lucide-react";
 import Modal from "../Modal/Modal";
 import useWs from "../../context/useWs";
 import {
-  wsCheckUserExist,
-  wsCheckUserOnline,
-  wsGetUserList,
+    wsCheckUserExist,
+    wsCheckUserOnline,
+    wsGetUserList,
+    wsCreateRoom,
+    wsJoinRoom,
 } from "../../api/chatApi";
 import "./conversationList.css";
 
+// --- HELPER FUNCTIONS ---
+
 function unwrapServerMessage(message) {
-  const event = message?.event ?? message?.data?.event;
-  const status = message?.status ?? message?.data?.status;
-  const mes = message?.mes ?? message?.data?.mes;
-  const data = message?.data?.data ?? message?.data ?? message;
-  return { event, status, mes, data };
+    const event = message?.event ?? message?.data?.event;
+    const status = message?.status ?? message?.data?.status;
+    const mes = message?.mes ?? message?.data?.mes;
+    const data = message?.data?.data ?? message?.data ?? message;
+    return { event, status, mes, data };
 }
 
 function waitForEvent(client, targetEvent, { timeoutMs = 8000 } = {}) {
-  return new Promise((resolve, reject) => {
-    let done = false;
+    return new Promise((resolve, reject) => {
+        let done = false;
 
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      off();
-      reject(new Error("timeout"));
-    }, timeoutMs);
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            off();
+            reject(new Error("timeout"));
+        }, timeoutMs);
 
-    const off = client.on("json", (msg) => {
-      const unwrapped = unwrapServerMessage(msg);
-      if (unwrapped.event !== targetEvent) return;
+        const off = client.on("json", (msg) => {
+            const unwrapped = unwrapServerMessage(msg);
+            if (unwrapped.event !== targetEvent) return;
 
-      clearTimeout(timer);
-      if (done) return;
-      done = true;
-      off();
-      resolve(unwrapped);
+            clearTimeout(timer);
+            if (done) return;
+            done = true;
+            off();
+            resolve(unwrapped);
+        });
     });
-  });
 }
 
 function parseOnlineStatus(unwrapped) {
-  // Common shapes:
-  // { event:'CHECK_USER_ONLINE', status:'success', data:{status:true} }
-  // or { data:{ online:true } }
-  const d = unwrapped?.data ?? {};
-  const v = d.status ?? d.online ?? d.isOnline;
-  return v === true;
+    const d = unwrapped?.data ?? {};
+    const v = d.status ?? d.online ?? d.isOnline;
+    return v === true;
 }
 
 function normalizeUserListPayload(payload) {
-  const data = payload ?? {};
+    const data = payload ?? {};
+    const roomsRaw = [];
+    const usersRaw = [];
+    const listRaw = Array.isArray(data) ? data : null;
 
-  const roomsRaw = [];
+    // Normalizing logic...
+    const rooms = (Array.isArray(roomsRaw) ? roomsRaw : []).map((r) => {
+        const name = typeof r === "string" ? r : r?.name ?? r?.id ?? String(r);
+        return { type: "room", id: String(name), name: String(name) };
+    });
 
-  const usersRaw = [];
+    let users = (Array.isArray(usersRaw) ? usersRaw : []).map((u) => {
+        const name = typeof u === "string" ? u : u?.name ?? u?.user ?? u?.id ?? String(u);
+        return { type: "people", id: String(name), name: String(name) };
+    });
 
-  const listRaw = Array.isArray(data) ? data : null;
-  const rooms = (Array.isArray(roomsRaw) ? roomsRaw : []).map((r) => {
-    const name = typeof r === "string" ? r : r?.name ?? r?.id ?? String(r);
-    return { type: "room", id: String(name), name: String(name) };
-  });
+    if (rooms.length === 0 && users.length === 0 && Array.isArray(listRaw)) {
+        const hasTypedItems = listRaw.some(
+            (x) => typeof x === "object" && x !== null && "type" in x
+        );
 
-  let users = (Array.isArray(usersRaw) ? usersRaw : []).map((u) => {
-    const name =
-      typeof u === "string" ? u : u?.name ?? u?.user ?? u?.id ?? String(u);
-    return { type: "people", id: String(name), name: String(name) };
-  });
+        if (hasTypedItems) {
+            const typedRooms = [];
+            const typedUsers = [];
 
-  if (rooms.length === 0 && users.length === 0 && Array.isArray(listRaw)) {
-    const hasTypedItems = listRaw.some(
-      (x) => typeof x === "object" && x !== null && "type" in x
-    );
+            for (const item of listRaw) {
+                const name = typeof item === "string"
+                    ? item
+                    : item?.name ?? item?.user ?? item?.id ?? String(item);
+                const t = typeof item === "object" && item !== null ? item.type : null;
 
-    if (hasTypedItems) {
-      const typedRooms = [];
-      const typedUsers = [];
-
-      for (const item of listRaw) {
-        const name =
-          typeof item === "string"
-            ? item
-            : item?.name ?? item?.user ?? item?.id ?? String(item);
-        const t = typeof item === "object" && item !== null ? item.type : null;
-
-        if (t === 1) {
-          typedRooms.push({
-            type: "room",
-            id: String(name),
-            name: String(name),
-          });
-        } else {
-          typedUsers.push({
-            type: "people",
-            id: String(name),
-            name: String(name),
-          });
+                if (t === 1) {
+                    typedRooms.push({ type: "room", id: String(name), name: String(name) });
+                } else {
+                    typedUsers.push({ type: "people", id: String(name), name: String(name) });
+                }
+            }
+            return { rooms: typedRooms, users: typedUsers };
         }
-      }
 
-      return { rooms: typedRooms, users: typedUsers };
+        // Otherwise treat it as a plain user list
+        users = listRaw.map((u) => {
+            const name = typeof u === "string" ? u : u?.name ?? u?.user ?? u?.id ?? String(u);
+            return { type: "people", id: String(name), name: String(name) };
+        });
     }
 
-    // Otherwise treat it as a plain user list
-    users = listRaw.map((u) => {
-      const name =
-        typeof u === "string" ? u : u?.name ?? u?.user ?? u?.id ?? String(u);
-      return { type: "people", id: String(name), name: String(name) };
-    });
-  }
-
-  return { rooms, users };
+    return { rooms, users };
 }
 
+// --- MAIN COMPONENT ---
+
 const ConversationList = ({
-  onSelectConversation,
-  selectedKey,
-  currentUsername,
-}) => {
-  const { client, connected } = useWs();
+                              onSelectConversation,
+                              selectedKey,
+                              currentUsername,
+                          }) => {
+    const { client, connected, user, authReady } = useWs();
+    const [activeTab, setActiveTab] = useState("priority");
+    const [selectedId, setSelectedId] = useState(selectedKey ?? "");
+    const [isOpenAddFriend, setIsOpenAddFriend] = useState(false);
+    const [isOpenCreateGroup, setIsOpenCreateGroup] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [searchResults, setSearchResults] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [searchMessage, setSearchMessage] = useState("");
+    const [groupName, setGroupName] = useState("");
+    const [selectedUsers, setSelectedUsers] = useState([]);
 
-  const [activeTab, setActiveTab] = useState("priority");
-  const [selectedId, setSelectedId] = useState(selectedKey ?? "");
-  const [isOpenAddFriend, setIsOpenAddFriend] = useState(false);
-  const [isOpenCreateGroup, setIsOpenCreateGroup] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchMessage, setSearchMessage] = useState("");
-  const [groupName, setGroupName] = useState("");
-  const [selectedUsers, setSelectedUsers] = useState([]);
+    const [rooms, setRooms] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [listLoading, setListLoading] = useState(false);
+    const [isOpenJoinRoom, setIsOpenJoinRoom] = useState(false);
+    const [joinRoomName, setJoinRoomName] = useState("");
+    const [onlineMap, setOnlineMap] = useState({});
 
-  const [rooms, setRooms] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [listLoading, setListLoading] = useState(false);
+    // Refs
+    const onlineTsRef = useRef({});
+    const onlineQueueRef = useRef(Promise.resolve());
+    // const refreshTimerRef = useRef(null);
 
-  const refreshTimerRef = useRef(null);
+    const effectiveSelectedId = selectedKey ?? selectedId;
 
-  const [onlineMap, setOnlineMap] = useState({});
-  const onlineTsRef = useRef({});
-  const onlineQueueRef = useRef(Promise.resolve());
+    // --- LOGIC 1: Check Online ---
+    const checkUserOnlineOnce = useCallback(
+        (username) => {
+            const run = async () => {
+                if (!authReady || !user) return false;
+                try {
+                    await wsCheckUserOnline(client, username);
+                    const res = await waitForEvent(client, "CHECK_USER_ONLINE", {
+                        timeoutMs: 6000,
+                    });
+                    const isOnline = parseOnlineStatus(res);
 
-  const effectiveSelectedId = selectedKey ?? selectedId;
+                    onlineTsRef.current[username] = Date.now();
+                    setOnlineMap((prev) => ({
+                        ...prev,
+                        [username]: isOnline ? "online" : "offline",
+                    }));
+                    return isOnline;
+                } catch {
+                    onlineTsRef.current[username] = Date.now();
+                    setOnlineMap((prev) => ({ ...prev, [username]: "offline" }));
+                    return false;
+                }
+            };
 
-  const checkUserOnlineOnce = useCallback(
-    (username) => {
-      const run = async () => {
-        if (!connected) return false;
+            // Serialize checks to avoid response mixups.
+            onlineQueueRef.current = onlineQueueRef.current.then(run, run);
+            return onlineQueueRef.current;
+        },
+        [client, authReady, user]
+    );
+
+    // --- LOGIC 2: Lắng nghe Tạo phòng & Join phòng ---
+    useEffect(() => {
+        if (!authReady || !client || !user) return;
+        const off = client.on("json", (message) => {
+            const unwrapped = unwrapServerMessage(message);
+            if (
+                (unwrapped.event !== "CREATE_ROOM" && unwrapped.event !== "JOIN_ROOM") ||
+                unwrapped.status !== "success"
+            ) {
+                return;
+            }
+            const roomData = unwrapped.data;
+            const ownerId = roomData.own || roomData.owner;
+
+            // Logic lọc: Nếu tạo phòng, chỉ hiện khi mình là chủ. Nếu join, luôn hiện.
+            if (unwrapped.event === "CREATE_ROOM") {
+                const myName = user.name || user.username || user.id;
+                if (String(ownerId) !== String(myName)) return;
+            }
+
+            const newRoom = {
+                type: "room",
+                id: String(roomData.id || roomData.name),
+                name: String(roomData.name),
+            };
+            setRooms((prev) => {
+                if (prev.some((r) => r.id === newRoom.id)) return prev;
+                return [newRoom, ...prev];
+            });
+            handleCloseModal();
+        });
+        return () => off();
+    }, [client, authReady, user]);
+
+    // --- LOGIC 3: Lấy danh sách User (GET_USER_LIST) ---
+    useEffect(() => {
+        if (!authReady || !client || !user) return;
+
+        setListLoading(true);
+
+        const off = client.on("json", (response) => {
+            const unwrapped = unwrapServerMessage(response);
+            if (unwrapped.event !== "GET_USER_LIST") return;
+
+            setListLoading(false);
+            if (unwrapped?.status && unwrapped.status !== "success") {
+                setRooms([]);
+                setUsers([]);
+                return;
+            }
+            const normalized = normalizeUserListPayload(unwrapped.data);
+
+            setRooms(normalized.rooms);
+            setUsers(normalized.users);
+        });
+
+        wsGetUserList(client).catch(() => {
+            setListLoading(false);
+        });
+
+        return () => off();
+    }, [client, authReady, user]);
+
+    // --- MEMOIZATION ---
+    const filteredUsers = useMemo(() => {
+        const me = (currentUsername ?? "").trim();
+        return me
+            ? users.filter((u) => String(u?.id).toLowerCase() !== me.toLowerCase())
+            : users;
+    }, [users, currentUsername]);
+
+    const conversationItems = useMemo(() => {
+        return {
+            rooms,
+            users: filteredUsers,
+        };
+    }, [rooms, filteredUsers]);
+
+    // --- LOGIC 4: Refresh Online Status định kỳ ---
+    useEffect(() => {
+        if (!authReady || !user || !client) return;
+        const names = (filteredUsers ?? []).map((u) => String(u.id));
+        const now = Date.now();
+        const me = (currentUsername ?? "").trim();
+
+        for (const name of names) {
+            if (me && name.toLowerCase() === me.toLowerCase()) continue;
+
+            const last = onlineTsRef.current[name] ?? 0;
+            if (now - last > 15000) {
+                checkUserOnlineOnce(name);
+            }
+        }
+    }, [authReady, filteredUsers, currentUsername, checkUserOnlineOnce]);
+
+
+    // --- HANDLERS ---
+
+    const handleCreateRoom = async () => {
+        if (!groupName.trim()) return;
+
+        if (!authReady || !user || !client) {
+            console.log("Đang chờ kết nối...");
+            return;
+        }
 
         try {
-          await wsCheckUserOnline(client, username);
-          const res = await waitForEvent(client, "CHECK_USER_ONLINE", {
-            timeoutMs: 6000,
-          });
-          const isOnline = parseOnlineStatus(res);
-
-          onlineTsRef.current[username] = Date.now();
-          setOnlineMap((prev) => ({
-            ...prev,
-            [username]: isOnline ? "online" : "offline",
-          }));
-          return isOnline;
-        } catch {
-          onlineTsRef.current[username] = Date.now();
-          setOnlineMap((prev) => ({ ...prev, [username]: "offline" }));
-          return false;
+            await wsCreateRoom(client, groupName);
+            setGroupName("");
+            setIsOpenCreateGroup(false);
+        } catch (error) {
+            console.error("Lỗi tạo phòng:", error);
+            alert("Lỗi server: " + error.message);
         }
-      };
+    }; // <--- Đã thêm dấu đóng ngoặc bị thiếu ở đây
 
-      // Serialize checks to avoid response mixups.
-      onlineQueueRef.current = onlineQueueRef.current.then(run, run);
-      return onlineQueueRef.current;
-    },
-    [client, connected]
-  );
+    const handleJoinRoom = async () => {
+        if (!joinRoomName.trim()) return;
 
-  useEffect(() => {
-    if (!connected) return;
+        if (!authReady || !user || !client) {
+            console.log("Đang chờ kết nối...");
+            return;
+        }
 
-    setListLoading(true);
-
-    const off = client.on("json", (response) => {
-      const unwrapped = unwrapServerMessage(response);
-      if (unwrapped.event !== "GET_USER_LIST") return;
-
-      setListLoading(false);
-      if (unwrapped?.status && unwrapped.status !== "success") {
-        setRooms([]);
-        setUsers([]);
-        return;
-      }
-      const normalized = normalizeUserListPayload(unwrapped.data);
-
-      setRooms(normalized.rooms);
-      setUsers(normalized.users);
-    });
-
-    wsGetUserList(client).catch(() => {
-      setListLoading(false);
-    });
-
-    return () => off();
-  }, [client, connected]);
-
-  const requestUserListRefresh = useCallback(
-    (delayMs = 250) => {
-      if (!connected) return;
-
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-      }
-
-      refreshTimerRef.current = setTimeout(() => {
-        setListLoading(true);
-        wsGetUserList(client).catch(() => {
-          setListLoading(false);
-        });
-      }, delayMs);
-    },
-    [client, connected]
-  );
-
-  // When a new message arrives, ensure the peer/room appears in the list.
-  useEffect(() => {
-    if (!connected) return;
-
-    const off = client.on("json", (payload) => {
-      // Heuristic: pushed chat usually includes mes.
-      const mes = payload?.data?.mes ?? payload?.mes;
-      if (!mes) return;
-
-      const type = payload?.data?.type ?? payload?.type;
-      const from = payload?.data?.from ?? payload?.from ?? payload?.data?.user;
-      const to = payload?.data?.to ?? payload?.to;
-
-      if (type === "people") {
-        const peer = String(from ?? "").trim();
-        if (!peer) return;
-        const me = String(currentUsername ?? "").trim();
-        if (me && peer.toLowerCase() === me.toLowerCase()) return;
-
-        setUsers((prev) => {
-          const exists = (prev ?? []).some(
-            (u) => String(u?.id).toLowerCase() === peer.toLowerCase()
-          );
-          if (exists) return prev;
-          return [...(prev ?? []), { type: "people", id: peer, name: peer }];
-        });
-
-        // Ask server for canonical list as well (covers servers that only
-        // add conversations after first message).
-        requestUserListRefresh(300);
-      }
-
-      if (type === "room") {
-        const roomName = String(to ?? "").trim();
-        if (!roomName) return;
-        setRooms((prev) => {
-          const exists = (prev ?? []).some(
-            (r) => String(r?.id).toLowerCase() === roomName.toLowerCase()
-          );
-          if (exists) return prev;
-          return [
-            ...(prev ?? []),
-            { type: "room", id: roomName, name: roomName },
-          ];
-        });
-        requestUserListRefresh(300);
-      }
-    });
-
-    return () => off();
-  }, [client, connected, currentUsername, requestUserListRefresh]);
-
-  // Periodic refresh so both clients stay in sync with server-side GET_USER_LIST.
-  useEffect(() => {
-    if (!connected) return;
-    const t = setInterval(() => requestUserListRefresh(0), 15000);
-    return () => clearInterval(t);
-  }, [connected, requestUserListRefresh]);
-
-  useEffect(() => {
-    return () => {
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
+        try {
+            await wsJoinRoom(client, joinRoomName);
+            setJoinRoomName("");
+            setIsOpenJoinRoom(false);
+        } catch (error) {
+            console.error("Lỗi tham gia phòng:", error);
+        }
     };
-  }, []);
 
-  const filteredUsers = useMemo(() => {
-    const me = (currentUsername ?? "").trim();
-    return me
-      ? users.filter((u) => String(u?.id).toLowerCase() !== me.toLowerCase())
-      : users;
-  }, [users, currentUsername]);
+    const handleSearchUser = async () => {
+        const keyword = searchTerm.trim();
+        if (!keyword) return;
 
-  const conversationItems = useMemo(() => {
-    return {
-      rooms,
-      users: filteredUsers,
-    };
-  }, [rooms, filteredUsers]);
+        const me = (currentUsername ?? "").trim();
+        if (me && keyword.toLowerCase() === me.toLowerCase()) {
+            setSearchResults([]);
+            setSearchMessage("Bạn không thể tìm chính mình");
+            return;
+        }
 
-  // Refresh online status for displayed users (type=people)
-  useEffect(() => {
-    if (!connected) return;
-    const names = (filteredUsers ?? []).map((u) => String(u.id));
-    const now = Date.now();
-    const me = (currentUsername ?? "").trim();
+        if (!connected) {
+            setSearchMessage("Đang kết nối... vui lòng thử lại");
+            return;
+        }
 
-    for (const name of names) {
-      if (me && name.toLowerCase() === me.toLowerCase()) continue;
-
-      const last = onlineTsRef.current[name] ?? 0;
-      if (now - last > 15000) {
-        checkUserOnlineOnce(name);
-      }
-    }
-  }, [connected, filteredUsers, currentUsername, checkUserOnlineOnce]);
-
-  // Hàm giả lập tìm kiếm User
-  const handleSearchUser = async () => {
-    const keyword = searchTerm.trim();
-    if (!keyword) return;
-
-    const me = (currentUsername ?? "").trim();
-    if (me && keyword.toLowerCase() === me.toLowerCase()) {
-      setSearchResults([]);
-      setSearchMessage("Bạn không thể tìm chính mình");
-      return;
-    }
-
-    if (!connected) {
-      setSearchMessage("Đang kết nối... vui lòng thử lại");
-      return;
-    }
-
-    setIsLoading(true);
-    setSearchMessage("");
-    setSearchResults([]);
-
-    try {
-      await wsCheckUserExist(client, keyword);
-      const res = await waitForEvent(client, "CHECK_USER_EXIST", {
-        timeoutMs: 8000,
-      });
-
-      const exists = res?.data?.status === true;
-      if (!exists) {
+        setIsLoading(true);
+        setSearchMessage("");
         setSearchResults([]);
-        setSearchMessage("Không tìm thấy người dùng");
-        return;
-      }
 
-      const isOnline = await checkUserOnlineOnce(keyword);
+        try {
+            await wsCheckUserExist(client, keyword);
+            const res = await waitForEvent(client, "CHECK_USER_EXIST", {
+                timeoutMs: 8000,
+            });
 
-      setSearchResults([
-        {
-          id: keyword,
-          name: keyword,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            keyword
-          )}`,
-          online: isOnline,
-        },
-      ]);
-    } catch {
-      setSearchMessage("Không thể tìm kiếm. Vui lòng thử lại");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+            const exists = res?.data?.status === true;
+            if (!exists) {
+                setSearchResults([]);
+                setSearchMessage("Không tìm thấy người dùng");
+                return;
+            }
 
-  // Hàm reset lại khi đóng
-  const handleCloseModal = () => {
-    setIsOpenAddFriend(false);
-    setIsOpenCreateGroup(false);
-    setSearchTerm("");
-    setSearchResults([]);
-    setSearchMessage("");
-    setGroupName("");
-    setSelectedUsers([]);
-  };
+            const isOnline = await checkUserOnlineOnce(keyword);
 
-  // Hàm chon thành viên
-  const toggleUserSelection = (userId) => {
-    if (selectedUsers.includes(userId)) {
-      setSelectedUsers(selectedUsers.filter((id) => id !== userId));
-    } else {
-      setSelectedUsers([...selectedUsers, userId]);
-    }
-  };
+            setSearchResults([
+                {
+                    id: keyword,
+                    name: keyword,
+                    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        keyword
+                    )}`,
+                    online: isOnline,
+                },
+            ]);
+        } catch {
+            setSearchMessage("Không thể tìm kiếm. Vui lòng thử lại");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  return (
-    <div className="conv-list">
-      {/* Header */}
-      <div className="conv-header">
-        <div className="conv-search-box">
-          <Search size={16} color="#7589a3" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm"
-            className="conv-search-input"
-          />
-        </div>
-        {/* Bắt sự kiện click mở Modal */}
-        <div
-          className="conv-icon-btn"
-          onClick={() => setIsOpenAddFriend(true)}
-          title="Thêm bạn"
-        >
-          <UserPlus size={20} />
-        </div>
-        <div
-          className="conv-icon-btn"
-          onClick={() => setIsOpenCreateGroup(true)}
-          title="Tạo nhóm"
-        >
-          <Users size={20} />
-        </div>
-      </div>
+    const handleCloseModal = () => {
+        setIsOpenAddFriend(false);
+        setIsOpenCreateGroup(false);
+        setIsOpenJoinRoom(false);
+        setSearchTerm("");
+        setSearchResults([]);
+        setSearchMessage("");
+        setGroupName("");
+        setJoinRoomName("");
+        setSelectedUsers([]);
+    };
 
-      {/* Tabs */}
-      <div className="conv-tabs">
-        <div
-          className={`conv-tab ${activeTab === "priority" ? "active" : ""}`}
-          onClick={() => setActiveTab("priority")}
-        >
-          Ưu tiên
-        </div>
-        <div
-          className={`conv-tab ${activeTab === "other" ? "active" : ""}`}
-          onClick={() => setActiveTab("other")}
-        >
-          Khác
-        </div>
-      </div>
+    const toggleUserSelection = (userId) => {
+        if (selectedUsers.includes(userId)) {
+            setSelectedUsers(selectedUsers.filter((id) => id !== userId));
+        } else {
+            setSelectedUsers([...selectedUsers, userId]);
+        }
+    };
 
-      {/* Danh sách tin nhắn */}
-      <div className="conv-items-scroll">
-        {listLoading && (
-          <div className="empty-state">Đang tải danh sách...</div>
-        )}
-
-        {!listLoading && conversationItems.rooms.length > 0 && (
-          <div className="conv-section">
-            {conversationItems.rooms.map((item) => {
-              const key = `room:${item.id}`;
-              return (
-                <div
-                  key={key}
-                  className={`conv-item ${
-                    effectiveSelectedId === key ? "active" : ""
-                  }`}
-                  onClick={() => {
-                    setSelectedId(key);
-                    onSelectConversation?.({
-                      type: "room",
-                      to: item.id,
-                      name: item.name,
-                      key,
-                    });
-                  }}
-                >
-                  <img
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      item.name
-                    )}`}
-                    alt="avt"
-                    className="conv-avatar"
-                  />
-                  <div className="conv-content">
-                    <div className="conv-row-top">
-                      <span className="conv-name">{item.name}</span>
-                      <span className="conv-time"></span>
-                    </div>
-                    <div className="conv-message">Room</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!listLoading && conversationItems.users.length > 0 && (
-          <div className="conv-section">
-            {conversationItems.users.map((item) => {
-              const key = `people:${item.id}`;
-              const st = onlineMap?.[String(item.id)];
-              const label =
-                st === "online"
-                  ? "Online"
-                  : st === "offline"
-                  ? "Offline"
-                  : "...";
-              return (
-                <div
-                  key={key}
-                  className={`conv-item ${
-                    effectiveSelectedId === key ? "active" : ""
-                  }`}
-                  onClick={() => {
-                    setSelectedId(key);
-                    onSelectConversation?.({
-                      type: "people",
-                      to: item.id,
-                      name: item.name,
-                      key,
-                    });
-                  }}
-                >
-                  <img
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      item.name
-                    )}`}
-                    alt="avt"
-                    className="conv-avatar"
-                  />
-                  <div className="conv-content">
-                    <div className="conv-row-top">
-                      <span className="conv-name">{item.name}</span>
-                      <span className="conv-time"></span>
-                    </div>
-                    <div className="conv-message">{label}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!listLoading &&
-          conversationItems.rooms.length === 0 &&
-          conversationItems.users.length === 0 && (
-            <div className="empty-state">
-              {connected ? "Chưa có phòng/người dùng" : "Đang kết nối..."}
+    // --- RENDER ---
+    if (!authReady) {
+        return (
+            <div className="conv-list" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div>Đang khôi phục đăng nhập...</div>
             </div>
-          )}
-      </div>
+        );
+    }
+    if (!user) return null;
 
-      {/* Thêm bạn bè */}
-      <Modal
-        isOpen={isOpenAddFriend}
-        onClose={handleCloseModal}
-        title="Thêm bạn mới"
-      >
-        <div className="modal-body-custom">
-          <div className="search-row">
-            <input
-              type="text"
-              className="modal-input"
-              placeholder="Số điện thoại hoặc tên..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <button className="btn-primary" onClick={handleSearchUser}>
-              Tìm
-            </button>
-          </div>
-
-          <div className="result-list">
-            {isLoading ? (
-              <div className="loading-text">Đang tìm kiếm...</div>
-            ) : (
-              searchResults.map((user) => (
-                <div key={user.id} className="user-row">
-                  <img src={user.avatar} className="avatar-small" alt="" />
-                  <div className="user-info">
-                    <div className="user-name">{user.name}</div>
-                    <div className="user-phone">
-                      {user.online === true
-                        ? "Online"
-                        : user.online === false
-                        ? "Offline"
-                        : "..."}
-                    </div>
-                  </div>
-
-                  <button
-                    className="btn-outline"
-                    onClick={() => {
-                      const key = `people:${user.name}`;
-                      onSelectConversation?.({
-                        type: "people",
-                        to: user.name,
-                        name: user.name,
-                        key,
-                      });
-                      setSelectedId(key);
-                      setIsOpenAddFriend(false);
-                    }}
-                  >
-                    Nhắn tin
-                  </button>
+    return (
+        <div className="conv-list">
+            {/* Header */}
+            <div className="conv-header">
+                <div className="conv-search-box">
+                    <Search size={16} color="#7589a3" />
+                    <input
+                        type="text"
+                        placeholder="Tìm kiếm"
+                        className="conv-search-input"
+                    />
                 </div>
-              ))
-            )}
-            {/* Gợi ý khi chưa tìm */}
-            {!isLoading && searchResults.length === 0 && (
-              <div className="empty-state">
-                {searchMessage || "Nhập từ khóa để tìm bạn bè"}
-              </div>
-            )}
-          </div>
-        </div>
-      </Modal>
-
-      {/*Tạo nhóm*/}
-      <Modal
-        isOpen={isOpenCreateGroup}
-        onClose={handleCloseModal}
-        title="Tạo nhóm chat"
-      >
-        <div className="modal-body-custom">
-          <div className="input-group">
-            <label>Tên nhóm</label>
-            <input
-              type="text"
-              className="modal-input"
-              placeholder="Nhập tên nhóm..."
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-            />
-          </div>
-
-          <div className="input-group">
-            <label>Thêm thành viên</label>
-            <div className="search-row">
-              <input
-                type="text"
-                className="modal-input"
-                placeholder="Tìm tên người dùng..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button className="btn-primary" onClick={handleSearchUser}>
-                Tìm
-              </button>
+                {/* Actions */}
+                <div className="conv-icon-btn" onClick={() => setIsOpenJoinRoom(true)} title="Tham gia phòng">
+                    <LayersPlus size={20} />
+                </div>
+                <div className="conv-icon-btn" onClick={() => setIsOpenAddFriend(true)} title="Thêm bạn">
+                    <UserPlus size={20} />
+                </div>
+                <div className="conv-icon-btn" onClick={() => setIsOpenCreateGroup(true)} title="Tạo nhóm">
+                    <Users size={20} />
+                </div>
             </div>
-          </div>
 
-          <div className="result-list checkable-list">
-            {searchResults.map((user) => (
-              <div
-                key={user.id}
-                className="user-row"
-                onClick={() => toggleUserSelection(user.id)}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedUsers.includes(user.id)}
-                  onChange={() => {}}
-                  style={{ marginRight: 10 }}
-                />
-                <img src={user.avatar} className="avatar-small" alt="" />
-                <div className="user-info">
-                  <div className="user-name">{user.name}</div>
+            {/* Tabs */}
+            <div className="conv-tabs">
+                <div
+                    className={`conv-tab ${activeTab === "priority" ? "active" : ""}`}
+                    onClick={() => setActiveTab("priority")}
+                >
+                    Ưu tiên
                 </div>
-              </div>
-            ))}
-          </div>
+                <div
+                    className={`conv-tab ${activeTab === "other" ? "active" : ""}`}
+                    onClick={() => setActiveTab("other")}
+                >
+                    Khác
+                </div>
+            </div>
 
-          <div className="modal-footer">
-            <button
-              className="btn-primary full-width"
-              disabled={!groupName || selectedUsers.length < 2}
+            {/* Danh sách Chat Items */}
+            <div className="conv-items-scroll">
+                {listLoading && (
+                    <div className="empty-state">Đang tải danh sách...</div>
+                )}
+
+                {/* Rooms */}
+                {!listLoading && conversationItems.rooms.length > 0 && (
+                    <div className="conv-section">
+                        {conversationItems.rooms.map((item) => {
+                            const key = `room:${item.id}`;
+                            return (
+                                <div
+                                    key={key}
+                                    className={`conv-item ${effectiveSelectedId === key ? "active" : ""
+                                    }`}
+                                    onClick={() => {
+                                        setSelectedId(key);
+                                        onSelectConversation?.({
+                                            type: "room",
+                                            to: item.id,
+                                            name: item.name,
+                                            key,
+                                        });
+                                    }}
+                                >
+                                    <img
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                            item.name
+                                        )}`}
+                                        alt="avt"
+                                        className="conv-avatar"
+                                    />
+                                    <div className="conv-content">
+                                        <div className="conv-row-top">
+                                            <span className="conv-name">{item.name}</span>
+                                            <span className="conv-time"></span>
+                                        </div>
+                                        <div className="conv-message">Room</div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Users */}
+                {!listLoading && conversationItems.users.length > 0 && (
+                    <div className="conv-section">
+                        {conversationItems.users.map((item) => {
+                            const key = `people:${item.id}`;
+                            const st = onlineMap?.[String(item.id)];
+                            const label = st === "online" ? "Online" : st === "offline" ? "Offline" : "...";
+                            return (
+                                <div
+                                    key={key}
+                                    className={`conv-item ${effectiveSelectedId === key ? "active" : ""
+                                    }`}
+                                    onClick={() => {
+                                        setSelectedId(key);
+                                        onSelectConversation?.({
+                                            type: "people",
+                                            to: item.id,
+                                            name: item.name,
+                                            key,
+                                        });
+                                    }}
+                                >
+                                    <img
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                            item.name
+                                        )}`}
+                                        alt="avt"
+                                        className="conv-avatar"
+                                    />
+                                    <div className="conv-content">
+                                        <div className="conv-row-top">
+                                            <span className="conv-name">{item.name}</span>
+                                            <span className="conv-time"></span>
+                                        </div>
+                                        <div className="conv-message">{label}</div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {!listLoading &&
+                    conversationItems.rooms.length === 0 &&
+                    conversationItems.users.length === 0 && (
+                        <div className="empty-state">
+                            {connected ? "Chưa có phòng/người dùng" : "Đang kết nối..."}
+                        </div>
+                    )}
+            </div>
+
+            {/* --- MODALS --- */}
+
+            {/* Modal Thêm bạn */}
+            <Modal
+                isOpen={isOpenAddFriend}
+                onClose={handleCloseModal}
+                title="Thêm bạn mới"
             >
-              Tạo nhóm ({selectedUsers.length})
-            </button>
-          </div>
+                <div className="modal-body-custom">
+                    <div className="search-row">
+                        <input
+                            type="text"
+                            className="modal-input"
+                            placeholder="Số điện thoại hoặc tên..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <button className="btn-primary" onClick={handleSearchUser}>
+                            Tìm
+                        </button>
+                    </div>
+
+                    <div className="result-list">
+                        {isLoading ? (
+                            <div className="loading-text">Đang tìm kiếm...</div>
+                        ) : (
+                            searchResults.map((user) => (
+                                <div key={user.id} className="user-row">
+                                    <img src={user.avatar} className="avatar-small" alt="" />
+                                    <div className="user-info">
+                                        <div className="user-name">{user.name}</div>
+                                        <div className="user-phone">
+                                            {user.online === true ? "Online" : user.online === false ? "Offline" : "..."}
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        className="btn-outline"
+                                        onClick={() => {
+                                            const key = `people:${user.name}`;
+                                            onSelectConversation?.({
+                                                type: "people",
+                                                to: user.name,
+                                                name: user.name,
+                                                key,
+                                            });
+                                            setSelectedId(key);
+                                            setIsOpenAddFriend(false);
+                                        }}
+                                    >
+                                        Nhắn tin
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                        {!isLoading && searchResults.length === 0 && (
+                            <div className="empty-state">
+                                {searchMessage || "Nhập từ khóa để tìm bạn bè"}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal Tạo nhóm */}
+            <Modal
+                isOpen={isOpenCreateGroup}
+                onClose={handleCloseModal}
+                title="Tạo nhóm chat"
+            >
+                <div className="modal-body-custom">
+                    <div className="input-group">
+                        <label>Tên nhóm</label>
+                        <input
+                            type="text"
+                            className="modal-input"
+                            placeholder="Nhập tên nhóm..."
+                            value={groupName}
+                            onChange={(e) => setGroupName(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="input-group">
+                        <label>Thêm thành viên</label>
+                        <div className="search-row">
+                            <input
+                                type="text"
+                                className="modal-input"
+                                placeholder="Tìm tên người dùng..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <button className="btn-primary" onClick={handleSearchUser}>
+                                Tìm
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="result-list checkable-list">
+                        {searchResults.map((user) => (
+                            <div
+                                key={user.id}
+                                className="user-row"
+                                onClick={() => toggleUserSelection(user.id)}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedUsers.includes(user.id)}
+                                    onChange={() => { }}
+                                    style={{ marginRight: 10 }}
+                                />
+                                <img src={user.avatar} className="avatar-small" alt="" />
+                                <div className="user-info">
+                                    <div className="user-name">{user.name}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="modal-footer">
+                        <button
+                            className="btn-primary full-width"
+                            disabled={!groupName}
+                            onClick={handleCreateRoom}
+                        >
+                            Tạo nhóm ({selectedUsers.length > 0 ? `(${selectedUsers.length})` : ""})
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal Tham gia phòng */}
+            <Modal
+                isOpen={isOpenJoinRoom}
+                onClose={handleCloseModal}
+                title="Tham gia phòng chat"
+            >
+                <div className="modal-body-custom">
+                    <div className="input-group">
+                        <label>Tên phòng muốn vào</label>
+                        <input
+                            type="text"
+                            className="modal-input"
+                            placeholder="Nhập tên phòng..."
+                            value={joinRoomName}
+                            onChange={(e) => setJoinRoomName(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleJoinRoom()}
+                        />
+                    </div>
+                    <div className="modal-footer">
+                        <button
+                            className="btn-primary full-width"
+                            disabled={!joinRoomName}
+                            onClick={handleJoinRoom}
+                        >
+                            Tham gia ngay
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
-      </Modal>
-    </div>
-  );
+    );
 };
 
 export default ConversationList;
