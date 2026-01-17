@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   Trash2,
 } from "lucide-react";
-import "./InfoChatAndRepo.css";
+import "./InfochatAndRepo.css";
 
 // --- MOCK DATA CHO PHẦN INFO (Mình thêm dữ liệu cho đủ > 10 cái để test) ---
 // const MOCK_PREVIEW_IMAGES = [
