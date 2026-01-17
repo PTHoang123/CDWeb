@@ -216,6 +216,7 @@ export default function ChatWindow({
   chatType = "room", // 'room' | 'people'
   chatTo = "36",
   currentUsername,
+                                     onMessagesUpdate,
 }) {
 
   const { client, connected } = useWs();
@@ -268,6 +269,11 @@ export default function ChatWindow({
 
   const [text, setText] = useState("");
   const [messages, setMessages] = useState(() => initialMessages ?? []);
+  useEffect(() => {
+    if (onMessagesUpdate) {
+      onMessagesUpdate(messages);
+    }
+  }, [messages, onMessagesUpdate]);
   // Load chat history when switching conversation
   useEffect(() => {
     if (!connected) return;
