@@ -20,6 +20,26 @@ import {
   wsSendChat,
 } from "../../api/chatApi";
 
+const safeEncode = (str) => {
+  try {
+    // Chuyển Emoji/Tiếng Việt sang dạng Base64 an toàn
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch (e) {
+    console.error("Encode error", e);
+    return str;
+  }
+};
+
+const safeDecode = (str) => {
+  try {
+    // Thử giải mã Base64 sang UTF-8
+    return decodeURIComponent(escape(atob(str)));
+  } catch (e) {
+    // Nếu không phải Base64 (tin nhắn cũ hoặc text thường), giữ nguyên
+    return str;
+  }
+};
+
 function unwrapServerMessage(message) {
   const event = message?.event ?? message?.data?.event;
   const status = message?.status ?? message?.data?.status;
@@ -128,7 +148,7 @@ const parseContentAndType = (rawContent) => {
     }
   }
 
-  return { type: "text", content: rawContent };
+  return { type: "text", content: safeDecode(rawContent) };
 };
 
 // Hàm kiểm tra xem nội dung là File, Ảnh hay Text
@@ -138,15 +158,13 @@ const parseMessageContent = (rawContent) => {
     if (typeof rawContent === "string" && rawContent.trim().startsWith("{")) {
       const parsed = JSON.parse(rawContent);
       if (parsed && parsed.dataType === "file_base64") {
-        return { type: "file", content: parsed }; // Trả về dạng File
+        return { type: "file", content: parsed };
       }
     }
   } catch (e) {
-    // Bỏ qua lỗi parse nếu là text thường
+  //   bỏ qua lỗi
   }
 
-  // 2. Kiểm tra nếu là Ảnh (Logic cũ của bạn)
-  // Lưu ý: Nếu bạn có hàm isImage riêng thì dùng nó, hoặc dùng regex này
   if (typeof rawContent === "string") {
     if (rawContent.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || rawContent.startsWith("data:image")) {
       return { type: "image", content: rawContent };
@@ -154,7 +172,7 @@ const parseMessageContent = (rawContent) => {
   }
 
   // 3. Mặc định là Text
-  return { type: "text", content: rawContent };
+  return { type: "text", content: safeDecode(rawContent) };
 };
 
 const uploadToImgBB = async (file) => {
@@ -215,6 +233,8 @@ export default function ChatWindow({
   };
 
   const [historyLoading, setHistoryLoading] = useState(false);
+  const inputRef = useRef(null);
+
 
   useEffect(() => {
     if (!connected) {
@@ -359,7 +379,11 @@ export default function ChatWindow({
   // --- XỬ LÝ EMOJI ---
   const handleEmojiClick = (emojiObject) => {
     setText((prev) => prev + emojiObject.emoji);
-    // Không đóng picker để chọn tiếp, hoặc đóng thì thêm: setShowEmojiPicker(false);
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 0);
   };
 
   // --- XỬ LÝ STICKER ---
@@ -609,15 +633,15 @@ export default function ChatWindow({
     e.preventDefault();
     if (!canSend) return;
 
-    const mes = text.trim();
+    const mes = text.trim(); // Đây là text gốc có Emoji
 
-    // optimistic UI
+    // 1. Hiển thị ngay lên giao diện (Giữ nguyên mes gốc để người gửi thấy ngay)
     setMessages((prev) => [
       ...prev,
       {
         id: nextId(),
         side: "right",
-        content: mes,
+        content: mes, // Hiển thị text gốc
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -627,34 +651,59 @@ export default function ChatWindow({
     setText("");
     setShowEmojiPicker(false);
 
-    // send using your protocol
+    // 2. Gửi lên Server (MÃ HÓA NỘI DUNG)
     try {
       if (chatType === "room" && chatTo) {
         await wsJoinRoom(client, chatTo);
         await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 }).catch(
-          () => {}
+            () => {}
         );
       }
-      await wsSendChat(client, { type: chatType, to: chatTo, mes });
+
+      // --- SỬA Ở ĐÂY: Dùng safeEncode(mes) ---
+      const encodedMes = safeEncode(mes);
+      await wsSendChat(client, { type: chatType, to: chatTo, mes: encodedMes });
+
     } catch {
       // optional: mark as failed
     }
   }
 
-  const handleQuickAction = () => {
+  const handleQuickAction = async () => {
     if (canSend) {
       document.querySelector(".chatWindow__composer")?.requestSubmit();
     } else {
+      const likeEmoji = "👍";
       const next = {
         id: nextId(),
         side: "right",
-        content: "👍",
+        content: likeEmoji,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         }),
       };
       setMessages((prev) => [...prev, next]);
+      try {
+        if (client && connected) {
+          // Nếu là Room thì cần đảm bảo đã Join (Logic giống onSubmit)
+          if (chatType === "room" && chatTo) {
+            // Thường room đã join lúc useEffect rồi, nhưng check lại cho chắc nếu cần
+            // Tuy nhiên để nhanh gọn cho nút Like, ta cứ gửi thẳng
+          }
+
+          // MÃ HÓA emoji 👍 thành Base64 trước khi gửi
+          const encodedMes = safeEncode(likeEmoji);
+
+          await wsSendChat(client, {
+            type: chatType,
+            to: chatTo,
+            mes: encodedMes
+          });
+        }
+      } catch (e) {
+        console.error("Lỗi gửi Like:", e);
+      }
     }
   };
 
@@ -851,15 +900,17 @@ export default function ChatWindow({
 
         <form className="chatWindow__composer" onSubmit={onSubmit}>
           <input
+              ref={inputRef}
             className="chatWindow__input"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Nhập @, tin nhắn tới ${title}`}
             onFocus={() => {
               // Tự động đóng các popup khi gõ phím
-              setShowEmojiPicker(false);
-              setShowStickerPicker(false);
-              setShowAttachMenu(false);
+              if (!showEmojiPicker) {
+                setShowStickerPicker(false);
+                setShowAttachMenu(false);
+              }
             }}
           />
 
