@@ -1,59 +1,87 @@
+// MessageBubble.jsx
 import React from "react";
+import { FileText, Download } from "lucide-react"; // Import icon
 import "./messageBubble.css";
 
 export default function MessageBubble({ message }) {
   const side = message?.side === "right" ? "right" : "left";
+
+  // Hàm render nội dung tùy theo loại tin nhắn
+  const renderContent = () => {
+    // 1. Xử lý ẢNH
+    if (message.type === "image") {
+      return (
+          <img
+              src={message.content}
+              alt="sent image"
+              className="msg__image"
+              style={{ maxWidth: "200px", borderRadius: "8px", cursor: "pointer" }}
+          />
+      );
+    }
+
+    // 2. Xử lý FILE (Dạng Object)
+    if (message.type === "file") {
+      // message.content lúc này là Object: { name, size, data, ... }
+      const { name, size, data } = message.content || {};
+
+      const handleDownload = () => {
+        if (!data) return;
+        const link = document.createElement("a");
+        link.href = data; // data là chuỗi Base64
+        link.download = name || "file";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      return (
+          <div className="msg__file-box">
+            <div className="msg__file-icon">
+              <FileText size={32} color="#fff" />
+            </div>
+            <div className="msg__file-info">
+              <div className="msg__file-name">{name}</div>
+              <div className="msg__file-size">{size}</div>
+            </div>
+            <div className="msg__file-download" onClick={handleDownload} title="Tải xuống">
+              <Download size={20} color="#fff" />
+            </div>
+          </div>
+      );
+    }
+
+    // 3. Xử lý TEXT (Logic cũ của bạn)
+    return <div className="msg__text">{renderTextWithLinks(message?.content)}</div>;
+  };
+
   const renderTextWithLinks = (text) => {
-    if (!text) return "";
-
-    // Regex tìm link bắt đầu bằng http hoặc https
+    if (typeof text !== 'string') return ""; // Bảo vệ chống lỗi nếu content là object
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-
-    // Tách chuỗi văn bản dựa trên link
     const parts = text.split(urlRegex);
-
     return parts.map((part, index) => {
-      // Nếu phần này khớp với regex link -> render thẻ <a>
       if (part.match(urlRegex)) {
         return (
-            <a
-                key={index}
-                href={part}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="msg__link" // Class này để style bên CSS
-                onClick={(e) => e.stopPropagation()} // Ngăn việc click link bị tính là click vào tin nhắn
-            >
+            <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="msg__link" onClick={(e) => e.stopPropagation()}>
               {part}
             </a>
         );
       }
-      // Nếu là chữ thường
       return part;
     });
   };
+
   return (
       <div className={`msg msg--${side}`}>
         <div className="msg__row">
           {side === "left" && (
-              <div className="msg__avatar" aria-hidden="true">
-                {message?.author?.[0]?.toUpperCase?.() ?? "A"}
-              </div>
+              <div className="msg__avatar">{message?.author?.[0]?.toUpperCase() ?? "A"}</div>
           )}
+          <div className={`msg__bubble msg__bubble--${side}`}>
+            {/* Gọi hàm renderContent ở đây */}
+            {renderContent()}
 
-          <div className="msg__content">
-            {side === "left" && message?.author && (
-                <div className="msg__author">{message.author}</div>
-            )}
-
-            <div className={`msg__bubble msg__bubble--${side}`}>
-              {/* THAY ĐỔI Ở ĐÂY: Gọi hàm render thay vì hiển thị trực tiếp */}
-              <div className="msg__text">
-                {renderTextWithLinks(message?.content)}
-              </div>
-
-              {message?.time && <div className="msg__time">{message.time}</div>}
-            </div>
+            {message?.time && <div className="msg__time">{message.time}</div>}
           </div>
         </div>
       </div>

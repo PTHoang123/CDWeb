@@ -108,7 +108,28 @@ function normalizeHistoryItem(item) {
   return { content: String(content ?? ""), author, time };
 }
 
-const IMGBB_API_KEY = "c071f3f96ce5daa2e26d0706786895b6"; // <--- Nhớ dán Key vào đây
+const IMGBB_API_KEY = "c071f3f96ce5daa2e26d0706786895b6";
+// Hàm helper để phân loại nội dung tin nhắn
+const parseContentAndType = (rawContent) => {
+  try {
+    if (typeof rawContent === "string" && rawContent.startsWith("{")) {
+      const parsed = JSON.parse(rawContent);
+      if (parsed && parsed.dataType === "file_base64") {
+        return { type: "file", content: parsed }; // Trả về Object
+      }
+    }
+  } catch (e) {}
+
+  if (typeof rawContent === "string") {
+    // Check base64 image hoặc link ảnh
+    if (rawContent.startsWith("data:image") || rawContent.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
+      return { type: "image", content: rawContent };
+    }
+  }
+
+  return { type: "text", content: rawContent };
+};
+
 
 // Hàm upload ảnh lên ImgBB
 const uploadToImgBB = async (file) => {
@@ -280,18 +301,20 @@ export default function ChatWindow({
               : list;
 
           const mapped = ordered.map((raw) => {
-            const { content, author, time } = normalizeHistoryItem(raw);
+            const { content:rawContent, author, time } = normalizeHistoryItem(raw);
             const side = isSameUser(author, currentUsername) ? "right" : "left";
-            let msgType = "text"; // Mặc định là text
-            // Kiểm tra nếu nội dung bắt đầu bằng mã Base64 của ảnh
-            if (isImage(content)) {
-              msgType = "image";
-            }
+            const { type, content } = parseContentAndType(rawContent);
+            // let msgType = "text"; // Mặc định là text
+            // // Kiểm tra nếu nội dung bắt đầu bằng mã Base64 của ảnh
+            // if (isImage(content)) {
+            //   msgType = "image";
+            // }
+
             return {
               id: nextId(),
               side,
               author,
-              type: msgType,
+              type: type,
               content: content,
               time:
                 typeof time === "string"
@@ -393,29 +416,46 @@ export default function ChatWindow({
 
   // 2. Chọn File thường
   // --- XỬ LÝ FILE (Chọn 1 hoặc nhiều file) ---
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      Array.from(files).forEach((file) => {
-        // Tạo URL tạm thời cho file để có thể tải xuống lại ngay lập tức
-        const objectUrl = URL.createObjectURL(file);
+    if (!files || files.length === 0) return;
 
-        const newMessage = {
-          id: nextId(),
-          side: "right",
-          type: "file",
-          content: {
-            name: file.name,
-            size: (file.size / 1024).toFixed(1) + " KB",
-            url: objectUrl, // <--- QUAN TRỌNG: Lưu URL để tải
-          },
-          time: new Date().toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+    for (const file of Array.from(files)) {
+      if (file.size > 5 * 1024 * 1024) { // Giới hạn 5MB
+        alert("File quá lớn (>5MB)"); continue;
+      }
+
+      // Convert file sang Base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result;
+
+        // Tạo gói tin File JSON
+        const filePayload = {
+          dataType: "file_base64",
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + " KB",
+          type: file.type,
+          data: base64
         };
-        setMessages((prev) => [...prev, newMessage]);
-      });
+
+        const msgString = JSON.stringify(filePayload); // Biến thành chuỗi để gửi
+
+        // Gửi đi
+        if (client && connected) {
+          await wsSendChat(client, { type: chatType, to: chatTo, mes: msgString });
+        }
+
+        // Hiển thị ngay (Optimistic UI)
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          side: "right",
+          type: "file",       // Quan trọng: type là file
+          content: filePayload, // Quan trọng: content là object
+          time: new Date().toLocaleTimeString("vi-VN", {hour: "2-digit", minute:"2-digit"})
+        }]);
+      };
+      reader.readAsDataURL(file);
     }
     e.target.value = null;
     setShowAttachMenu(false);
@@ -458,17 +498,21 @@ export default function ChatWindow({
 
   const handleDownloadClick = (msg) => {
     if (msg.type === "image") {
+      // Logic cũ cho ảnh
       triggerDownload(msg.content, `image_${msg.id}.png`);
     } else if (msg.type === "file") {
-      // Với file, dùng đường dẫn Blob URL đã tạo lúc upload
-      if (msg.content.url) {
-        triggerDownload(msg.content.url, msg.content.name);
+      const fileData = msg.content; // Object { name, data, ... }
+      if (fileData && fileData.data) {
+        // Tạo link tải từ chuỗi Base64
+        const link = document.createElement("a");
+        link.href = fileData.data;
+        link.download = fileData.name || "download_file";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        alert("File lỗi hoặc không tồn tại nội dung.");
       }
-    } else if (msg.type === "folder") {
-      // Folder thường phải được Zip từ server mới tải được
-      alert(
-        `Đang yêu cầu server nén thư mục "${msg.content.name}" để tải xuống...`
-      );
     }
   };
 

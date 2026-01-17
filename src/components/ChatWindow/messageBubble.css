@@ -88,3 +88,55 @@
 .msg--left .msg__link {
   color: #0068ff; /* Màu xanh dương */
 }
+
+/* Thêm vào messageBubble.css */
+
+.msg__file-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+  min-width: 200px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.msg__file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msg__file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.msg__file-name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  color: #fff;
+}
+
+.msg__file-size {
+  font-size: 11px;
+  color: #ddd;
+}
+
+.msg__file-download {
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.msg__file-download:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
