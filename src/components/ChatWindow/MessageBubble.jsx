@@ -1,26 +1,53 @@
 // MessageBubble.jsx
 import React from "react";
-import { FileText, Download } from "lucide-react"; // Import icon
+import { FileText, Download, Sticker,
+    Smile, Image as ImageIcon, } from "lucide-react"; // Import icon
 import "./messageBubble.css";
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, onImageClick }) {
   const side = message?.side === "right" ? "right" : "left";
 
   // Hàm render nội dung tùy theo loại tin nhắn
   const renderContent = () => {
-    // 1. Xử lý ẢNH
-    if (message.type === "image") {
-      return (
-          <img
-              src={message.content}
-              alt="sent image"
-              className="msg__image"
-              style={{ maxWidth: "200px", borderRadius: "8px", cursor: "pointer" }}
-          />
-      );
-    }
+      // Xử lý STICKER
+      if (message.type === "sticker") {
+          return (
+              <img
+                  src={message.content}
+                  alt="sticker"
+                  className="msg__sticker"
+                  // Sticker thường to hơn emoji và không cần bo góc hay border như ảnh chụp
+                  style={{
+                      width: "120px",
+                      height: "120px",
+                      objectFit: "contain",
+                      cursor: "pointer"
+                  }}
+              />
+          );
+      }
+    // Xử lý ẢNH
+      if (message.type === "image") {
+          return (
+              <img
+                  src={message.content}
+                  alt="sent image"
+                  className="msg__image"
+                  style={{ maxWidth: "200px", borderRadius: "8px", cursor: "pointer" }}
 
-    // 2. Xử lý FILE (Dạng Object)
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      if (onImageClick) {
+                          onImageClick(message);
+                      } else {
+                          console.warn("Chưa truyền onImageClick vào MessageBubble");
+                      }
+                  }}
+              />
+          );
+      }
+
+    // Xử lý FILE
     if (message.type === "file") {
       // message.content lúc này là Object: { name, size, data, ... }
       const { name, size, data } = message.content || {};
@@ -51,7 +78,7 @@ export default function MessageBubble({ message }) {
       );
     }
 
-    // 3. Xử lý TEXT (Logic cũ của bạn)
+    // Xử lý TEXT
     return <div className="msg__text">{renderTextWithLinks(message?.content)}</div>;
   };
 
@@ -71,19 +98,17 @@ export default function MessageBubble({ message }) {
     });
   };
 
-  return (
-      <div className={`msg msg--${side}`}>
-        <div className="msg__row">
-          {side === "left" && (
-              <div className="msg__avatar">{message?.author?.[0]?.toUpperCase() ?? "A"}</div>
-          )}
-          <div className={`msg__bubble msg__bubble--${side}`}>
-            {/* Gọi hàm renderContent ở đây */}
-            {renderContent()}
-
-            {message?.time && <div className="msg__time">{message.time}</div>}
-          </div>
+    return (
+        <div className={`msg msg--${side}`}>
+            <div className="msg__row">
+                {side === "left" && (
+                    <div className="msg__avatar">{message?.author?.[0]?.toUpperCase() ?? "A"}</div>
+                )}
+                <div className={message.type === "sticker" ? "msg__sticker-container" : `msg__bubble msg__bubble--${side}`}>
+                    {renderContent()}
+                    {message?.time && <div className="msg__time">{message.time}</div>}
+                </div>
+            </div>
         </div>
-      </div>
-  );
+    );
 }

@@ -102,6 +102,7 @@ function normalizeHistoryItem(item) {
 }
 
 const IMGBB_API_KEY = "c071f3f96ce5daa2e26d0706786895b6";
+
 // Hàm helper để phân loại nội dung tin nhắn
 const parseContentAndType = (rawContent) => {
   try {
@@ -117,6 +118,11 @@ const parseContentAndType = (rawContent) => {
 
   if (typeof rawContent === "string") {
     // Check base64 image hoặc link ảnh
+    if (rawContent.startsWith("STICKER|")) {
+      const stickerUrl = rawContent.replace("STICKER|", "");
+      return { type: "sticker", content: stickerUrl };
+    }
+
     if (rawContent.startsWith("data:image") || rawContent.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
       return { type: "image", content: rawContent };
     }
@@ -124,6 +130,7 @@ const parseContentAndType = (rawContent) => {
 
   return { type: "text", content: rawContent };
 };
+
 // Hàm kiểm tra xem nội dung là File, Ảnh hay Text
 const parseMessageContent = (rawContent) => {
   // 1. Kiểm tra xem có phải là JSON File (đã quy ước dataType="file_base64")
@@ -201,7 +208,11 @@ export default function ChatWindow({
   const [presence, setPresence] = useState("unknown"); // online | offline | unknown
   const [selectedGalleryImg, setSelectedGalleryImg] = useState(null);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-
+  const handleImageClick = (msg) => {
+    console.log("Clicked image:", msg);
+    setSelectedGalleryImg(msg);
+    setIsGalleryOpen(true);
+  };
 
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -237,11 +248,6 @@ export default function ChatWindow({
 
   const [text, setText] = useState("");
   const [messages, setMessages] = useState(() => initialMessages ?? []);
-  const isImage = (txt) => {
-    if (!txt || typeof txt !== 'string') return false;
-    // Kiểm tra nếu là link từ ImgBB hoặc có đuôi ảnh
-    return txt.includes("ibb.co") || txt.match(/\.(jpeg|jpg|gif|png)$/i) || txt.startsWith("data:image");
-  };
   // Load chat history when switching conversation
   useEffect(() => {
     if (!connected) return;
@@ -318,8 +324,8 @@ export default function ChatWindow({
               id: nextId(), // Hoặc dùng raw.id nếu có
               side,
               author,
-              type: type,       // 'file', 'image', hoặc 'text'
-              content: content, // Object (nếu là file) hoặc String (nếu là text/ảnh)
+              type: type,
+              content: content,
               time: typeof time === "string"
                   ? time
                   : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -358,19 +364,32 @@ export default function ChatWindow({
 
   // --- XỬ LÝ STICKER ---
   const handleSendSticker = (url) => {
-    // Gửi sticker coi như gửi một tin nhắn dạng ảnh/sticker
+    // 1. Tạo nội dung gửi đi với tiền tố quy ước
+    const contentToSend = `STICKER|${url}`;
+
+    // 2. Gửi lên Server (Quan trọng: Phải có bước này mới lưu được)
+    if (client && connected) {
+      wsSendChat(client, {
+        type: chatType, // 'room' hoặc 'people'
+        to: chatTo,
+        mes: contentToSend // Gửi chuỗi "STICKER|url..."
+      }).catch(err => console.error("Lỗi gửi sticker:", err));
+    }
+
+    // 3. Hiển thị ngay lên UI (Optimistic Update) để người dùng thấy mượt mà
     const newMessage = {
-      id: nextId(),
+      id: nextId(), // Hoặc Date.now()
       side: "right",
-      type: "sticker", // Đánh dấu là sticker
-      content: url,
+      type: "sticker", // Loại tin nhắn là sticker
+      content: url,    // Chỉ lưu URL để hiển thị
       time: new Date().toLocaleTimeString("vi-VN", {
         hour: "2-digit",
         minute: "2-digit",
       }),
     };
+
     setMessages((prev) => [...prev, newMessage]);
-    setShowStickerPicker(false);
+    setShowStickerPicker(false); // Đóng bảng chọn sticker
   };
 
   // --- XỬ LÝ FILE / ẢNH / FOLDER ---
@@ -441,7 +460,6 @@ export default function ChatWindow({
 
         const msgString = JSON.stringify(filePayload); // Biến thành chuỗi để gửi
 
-        // Gửi đi
         if (client && connected) {
           await wsSendChat(client, { type: chatType, to: chatTo, mes: msgString });
         }
@@ -452,6 +470,7 @@ export default function ChatWindow({
           side: "right",
           type: "file",       // Quan trọng: type là file
           content: filePayload, // Quan trọng: content là object
+          author: currentUsername,
           time: new Date().toLocaleTimeString("vi-VN", {hour: "2-digit", minute:"2-digit"})
         }]);
       };
@@ -485,37 +504,6 @@ export default function ChatWindow({
     e.target.value = null;
     setShowAttachMenu(false);
   };
-
-  // --- HÀM HỖ TRỢ DOWNLOAD ---
-  const triggerDownload = (url, fileName) => {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  const handleDownloadClick = (msg) => {
-    if (msg.type === "image") {
-      // Logic cũ cho ảnh
-      triggerDownload(msg.content, `image_${msg.id}.png`);
-    } else if (msg.type === "file") {
-      const fileData = msg.content; // Object { name, data, ... }
-      if (fileData && fileData.data) {
-        // Tạo link tải từ chuỗi Base64
-        const link = document.createElement("a");
-        link.href = fileData.data;
-        link.download = fileData.name || "download_file";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        alert("File lỗi hoặc không tồn tại nội dung.");
-      }
-    }
-  };
-
 
   // --- UI RENDER HELPERS ---
   const toggleEmoji = () => {
@@ -712,70 +700,29 @@ export default function ChatWindow({
       </header>
 
       <div className="chatWindow__body">
-        {messages.map((m) =>
-          m.type === "sticker" ? (
-            <div key={m.id} className={`message-row right`}>
-              <img src={m.content} alt="sticker" className="sticker-img" />
-              <div className="msg-time">{m.time}</div>
-            </div>
-          ) : m.type === "image" ? (
-            <div key={m.id} className={`message-group ${m.side}`}>
-              <div className="msg-content-wrapper">
-                <img
-                  src={m.content}
-                  alt="attachment"
-                  className="msg-image-display"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => {
-                    // Đảm bảo dùng đúng hàm setState mà bạn khai báo ở đầu file
-                    setSelectedGalleryImg(m);
-                    setIsGalleryOpen(true);
-                  }}
+        {messages.map((m, index) => {
+          const date = new Date(m.id || Date.now());
+          const dateString = date.toLocaleDateString("vi-VN");
+          let lastDate;
+          lastDate = dateString;
+          const showDate = dateString !== lastDate;
+          return (
+              <React.Fragment key={m.id || index}>
+                {/* Giữ nguyên phần hiển thị ngày tháng */}
+                {showDate && (
+                    <div className="date-separator">
+                      <span>{dateString}</span>
+                    </div>
+                )}
+
+                <MessageBubble
+                    message={m}
+                    onImageClick={handleImageClick} // Truyền hàm xuống con
                 />
-                <div className="msg-time-mini">{m.time}</div>
-              </div>
-            </div>
-          ) : m.type === "file" ? (
-            <div key={m.id} className={`message-group ${m.side}`}>
-              <div className="msg-content-wrapper">
-                <div
-                  className="msg-file-box"
-                  // Thêm sự kiện click để tải
-                  onClick={() => handleDownloadClick(m)}
-                  style={{ cursor: "pointer" }} // Đổi con trỏ chuột
-                  title="Nhấn để tải file"
-                >
-                  <FileText size={32} color="#0068ff" />
-                  <div className="file-info">
-                    <div className="file-name">{m.content.name}</div>
-                    <div className="file-meta">{m.content.size}</div>
-                  </div>
-                </div>
-                <div className="msg-time-mini">{m.time}</div>
-              </div>
-            </div>
-          ) : m.type === "folder" ? (
-            <div key={m.id} className={`message-group ${m.side}`}>
-              <div className="msg-content-wrapper">
-                <div
-                  className="msg-file-box"
-                  onClick={() => handleDownloadClick(m)}
-                  style={{ cursor: "pointer" }}
-                  title="Tải thư mục (Zip)"
-                >
-                  <Folder size={32} color="#f5a623" />
-                  <div className="file-info">
-                    <div className="file-name">{m.content.name}</div>
-                    <div className="file-meta">{m.content.itemCount} items</div>
-                  </div>
-                </div>
-                <div className="msg-time-mini">{m.time}</div>
-              </div>
-            </div>
-          ) : (
-            <MessageBubble key={m.id} message={m} />
-          )
-        )}
+
+              </React.Fragment>
+          );
+        })}
         {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
         <div className="chat-popups">
           {/* 1. Emoji Picker */}
@@ -939,10 +886,10 @@ export default function ChatWindow({
         </form>
       </footer>
       <ImageGalleryModal
-        isOpen={isGalleryOpen}
-        onClose={() => setIsGalleryOpen(false)}
-        currentImage={selectedGalleryImg}
-        allMessages={messages} // Truyền toàn bộ tin nhắn để lọc ảnh bên sidebar
+          isOpen={isGalleryOpen}
+          onClose={() => setIsGalleryOpen(false)}
+          currentImage={selectedGalleryImg}
+          allMessages={messages}
       />
     </section>
 
