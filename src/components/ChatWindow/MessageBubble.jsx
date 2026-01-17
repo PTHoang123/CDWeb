@@ -104,9 +104,24 @@ export default function MessageBubble({ message, onImageClick }) {
                 {side === "left" && (
                     <div className="msg__avatar">{message?.author?.[0]?.toUpperCase() ?? "A"}</div>
                 )}
-                <div className={message.type === "sticker" ? "msg__sticker-container" : `msg__bubble msg__bubble--${side}`}>
-                    {renderContent()}
-                    {message?.time && <div className="msg__time">{message.time}</div>}
+                <div className="msg__stack">
+
+                    {/* Hiển thị tên người gửi (Chỉ hiện cho tin nhắn bên trái) */}
+                    {side === "left" && message?.author && (
+                        <div className="msg__author">{message.author}</div>
+                    )}
+
+                    {/* Bong bóng chat (Giữ nguyên logic cũ) */}
+                    <div
+                        className={
+                            message.type === "sticker"
+                                ? "msg__sticker-container"
+                                : `msg__bubble msg__bubble--${side}`
+                        }
+                    >
+                        {renderContent()}
+                        {message?.time && <div className="msg__time">{message.time}</div>}
+                    </div>
                 </div>
             </div>
         </div>

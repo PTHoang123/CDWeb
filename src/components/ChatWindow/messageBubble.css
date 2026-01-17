@@ -140,3 +140,25 @@
 .msg__file-download:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* --- Thêm mới Class này --- */
+.msg__stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Ngăn vỡ layout flex */
+}
+
+/* Căn lề phải cho tin nhắn của mình */
+.msg--right .msg__stack {
+  align-items: flex-end;
+}
+
+/* --- Chỉnh sửa lại Class .msg__author có sẵn --- */
+.msg__author {
+  margin: 0 0 4px; /* Khoảng cách với bong bóng chat */
+  font-size: 12px;
+  font-weight: 500;
+  color: #65676b; /* Màu xám đậm để dễ nhìn trên nền trắng */
+  margin-left: 2px;
+  opacity: 1; /* Bỏ opacity mờ cũ nếu cần rõ hơn */
+}
