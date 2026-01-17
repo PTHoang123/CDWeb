@@ -1,12 +1,16 @@
 import React from "react";
-import { useWsClient } from "../hooks/useWsClient";
-import { WsContext } from "./wsContextInternal";
+import useWsContextInternal, { WsContext } from "./wsContextInternal";
+// import { useWsClient } from "../hooks/useWsClient";
+// import { WsContext } from "./wsContextInternal";
 
-export function WsProvider({ url, children }) {
-  const { client, connected } = useWsClient(url);
+export function WsProvider({ children, url}) {
+    const values = useWsContextInternal(url);
+  // const { client, connected } = useWsClient(url);
   return (
-    <WsContext.Provider value={{ client, connected }}>
+    <WsContext.Provider value={values}>
       {children}
     </WsContext.Provider>
   );
 }
+
+export { WsContext };
