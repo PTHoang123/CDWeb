@@ -14,9 +14,9 @@ import { logoutOverWs } from "./api/wsAuth";
 const WS_URL = "wss://chat.longapp.site/chat/chat";
 
 function AppInner() {
-  const { client } = useWs();
 
-  const [user, setUser] = useState(null);
+  const { client, user, setUser, connected } = useWs();
+  // const [user, setUser] = useState(null);
   const [authPage, setAuthPage] = useState("login");
   const [showInfo, setShowInfo] = useState(true);
   const [activeChat, setActiveChat] = useState({
@@ -44,19 +44,28 @@ function AppInner() {
   };
   // ------------------------------------
 
-  if (!user) {
-    if (authPage === "register") {
-      return <Register onBackToLogin={() => setAuthPage("login")} />;
+  // if (!user) {
+  //   if (authPage === "register") {
+  //     return <Register onBackToLogin={() => setAuthPage("login")} />;
+  //   }
+  //   return (
+  //     <Login
+  //       onLoginSuccess={(userData) => setUser(userData)}
+  //       onGoRegister={() => setAuthPage("register")}
+  //     />
+  //   );
+  // }
+    // Login render
+    if (!user) {
+        if (!connected) return <div>Đang kết nối WebSocket…</div>;
+        if (authPage === "register") {
+            return <Register onBackToLogin={() => setAuthPage("login")} />;
+        }
+        return <Login onGoRegister={() => setAuthPage("register")} />;
     }
-    return (
-      <Login
-        onLoginSuccess={(userData) => setUser(userData)}
-        onGoRegister={() => setAuthPage("register")}
-      />
-    );
-  }
 
-  const displayName = user.displayName || user.username || "User";
+
+    const displayName = user.displayName || user.username || "User";
 
   return (
     <ChatLayout
