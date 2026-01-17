@@ -5,7 +5,9 @@ import { auth, googleProvider } from "../firebase";
 import useWs from "../context/useWs";
 import { loginOverWs, reloginOverWs } from "../api/wsAuth";
 
-// THÊM onLoginSuccess VÀO PROPS
+// THÊM onLoginSuccess VÀO
+const IMG_WELCOME = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f44b.png"; // Ảnh Hi/Welcome
+const IMG_SAD = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f622.png";
 const Login = ({ onGoRegister, onLoginSuccess }) => {
     const { client, connected, setUser } = useWs();
 
@@ -15,18 +17,8 @@ const Login = ({ onGoRegister, onLoginSuccess }) => {
     const [error, setError] = useState("");
     const [googleLoading, setGoogleLoading] = useState(false);
 
-    // State quản lý màn hình chờ Re-login
     const [isRelogging, setIsRelogging] = useState(true);
-
-    // Chốt chặn để không chạy Relogin 2 lần
     const hasTriedRelogin = useRef(false);
-
-    const demoAccounts = [
-        { name: "Đức Hải", user: "duchai", pass: "12345" },
-        { name: "Tiến Hoàng", user: "tienhoang", pass: "12345" },
-        { name: "Thanh Huy", user: "thanhhuy", pass: "12345" },
-        { name: "Giảng viên", user: "long", pass: "12345" },
-    ];
 
     // --- LOGIC TỰ ĐỘNG ĐĂNG NHẬP (RE-LOGIN) ---
     useEffect(() => {
@@ -186,24 +178,19 @@ const Login = ({ onGoRegister, onLoginSuccess }) => {
         <div className="login-body-wrapper">
             <div className="login-container">
                 <div className="app-title">Chatify</div>
-                <div className="subtitle">Chọn tài khoản mẫu hoặc nhập tay</div>
+                <div className="subtitle">Đăng nhập bằng google hoặc nhập tay</div>
 
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: 8,
-                    }}
-                >
+                <div className="top-action-bar">
                     <button
                         type="button"
                         onClick={onGoRegister}
-                        style={{ cursor: "pointer" }}
+                        className="btn-outline" // Class mới thêm
                     >
-                        Create account
+                        Create Account
                     </button>
-                    <span style={{ fontSize: 12, opacity: 0.7 }}>
-                        WS: {connected ? "online" : "connecting..."}
+
+                    <span className="ws-status">
+                        WS: {connected ? "Online 🟢" : "Connecting... 🟠"}
                     </span>
                 </div>
 
@@ -236,6 +223,15 @@ const Login = ({ onGoRegister, onLoginSuccess }) => {
                     {googleLoading ? "Signing in..." : "Continue with Google"}
                 </button>
 
+                <div className="mascot-container">
+                    <img
+                        // Nếu có lỗi -> Ảnh Sad, ngược lại -> Ảnh Welcome
+                        src={error ? IMG_SAD : IMG_WELCOME}
+                        alt="Status Mascot"
+                        className="mascot-img"
+                    />
+                </div>
+
                 {/* Khu vực nút đăng nhập nhanh */}
                 <div
                     style={{
@@ -245,20 +241,7 @@ const Login = ({ onGoRegister, onLoginSuccess }) => {
                         flexWrap: "wrap",
                     }}
                 >
-                    {demoAccounts.map((acc) => (
-                        <button
-                            key={acc.user}
-                            type="button"
-                            onClick={() => handleSubmit(null, acc.user, acc.pass)}
-                            style={{
-                                padding: "4px 8px",
-                                fontSize: "12px",
-                                cursor: "pointer",
-                            }}
-                        >
-                            {acc.name}
-                        </button>
-                    ))}
+
                 </div>
 
                 <form onSubmit={handleSubmit}>

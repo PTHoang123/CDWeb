@@ -1,7 +1,7 @@
 .sidebar-nav {
     width: 64px;
     height: 100vh;
-    background-color: #0068ff;
+    background: linear-gradient(135deg, #667eea, #764ba2);
     display: flex;
     flex-direction: column;
     justify-content: space-between;

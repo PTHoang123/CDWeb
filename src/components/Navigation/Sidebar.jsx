@@ -195,9 +195,6 @@ const Sidebar = ({ user, onLogout}) => {
                     >
                         <span className="logout-text">Đăng xuất</span>
                     </div>
-                    <div className="dropdown-item" onMouseEnter={() => setActiveSubMenu(null)}>
-                        <span>Thoát</span>
-                    </div>
                 </div>
             )}
 

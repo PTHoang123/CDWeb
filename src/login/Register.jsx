@@ -3,6 +3,8 @@ import "./loginStyle.css";
 import useWs from "../context/useWs";
 import { wsRegister } from "../api/chatApi";
 
+const IMG_WELCOME = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f44b.png"; // Ảnh Hi/Welcome
+const IMG_HAPPY = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f973.png";
 export default function Register({ onBackToLogin }) {
   const { client, connected } = useWs();
 
@@ -54,6 +56,14 @@ export default function Register({ onBackToLogin }) {
           <span style={{ fontSize: 12, opacity: 0.7 }}>
             WS: {connected ? "online" : "connecting..."}
           </span>
+        </div>
+
+        <div className="mascot-container">
+          <img
+              src={success ? IMG_HAPPY : IMG_WELCOME}
+              alt="Status Mascot"
+              className="mascot-img"
+          />
         </div>
 
         {error && (
