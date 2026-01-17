@@ -49,12 +49,12 @@ export default function Register({ onBackToLogin }) {
           <button
             type="button"
             onClick={onBackToLogin}
-            style={{ cursor: "pointer" }}
+            className="btn-outline"
           >
             ← Back
           </button>
           <span style={{ fontSize: 12, opacity: 0.7 }}>
-            WS: {connected ? "online" : "connecting..."}
+           WS: {connected ? "Online 🟢" : "Connecting... 🟠"}
           </span>
         </div>
 
