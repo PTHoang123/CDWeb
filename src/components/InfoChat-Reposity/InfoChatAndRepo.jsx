@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
     Bell, Pin, Users, Edit2, ChevronDown, ChevronLeft,
     Search, Folder, FileText, FileCode, Link as LinkIcon,
@@ -88,17 +88,22 @@ const REPO_LINK_GROUPS = [
     }
 ];
 
-export default function InfoChatAndRepo({  activeChat }) {
+export default function InfoChatAndRepo({ activeChat }) {
     const [activeTab, setActiveTab] = useState('info');
     const [activeRepoTab, setActiveRepoTab] = useState('media');
     const [sections, setSections] = useState({
         media: true, files: true, links: true, security: true
     });
+    const [searchTerm] = useState("");
+    const keyword = searchTerm.trim();
+    const avatarSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        keyword
+    )}`;
     const isRoom = activeChat?.type === 'room';
     const displayName = activeChat?.name || "Cuộc trò chuyện";
     const displayAvatar = isRoom
         ? "https://cdn-icons-png.flaticon.com/512/166/166258.png" // Ảnh mặc định cho Room
-        : "https://gcs.tripi.vn/public-tripi/tripi-feed/img/482752udT/anh-mo-ta.png"; // Ảnh mặc định cho User
+        : avatarSrc; // Ảnh mặc định cho User
     const toggleSection = (key) => {
         setSections(prev => ({ ...prev, [key]: !prev[key] }));
     };

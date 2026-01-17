@@ -108,7 +108,9 @@ const parseContentAndType = (rawContent) => {
         return { type: "file", content: parsed }; // Trả về Object
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    // Bỏ qua lỗi
+  }
 
   if (typeof rawContent === "string") {
     // Check base64 image hoặc link ảnh
