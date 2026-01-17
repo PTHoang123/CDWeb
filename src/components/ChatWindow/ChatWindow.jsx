@@ -276,26 +276,18 @@ export default function ChatWindow({
               : list;
 
           const mapped = ordered.map((raw) => {
-            const { content, author, time } = normalizeHistoryItem(raw);
+            const { content: rawContent, author, time } = normalizeHistoryItem(raw);
             const side = isSameUser(author, currentUsername) ? "right" : "left";
-            let msgType = "text"; // Mặc định là text
-            // Kiểm tra nếu nội dung bắt đầu bằng mã Base64 của ảnh
-            if (isImage(content)) {
-              msgType = "image";
-            }
+            const { type, content } = parseContentAndType(rawContent);
             return {
-              id: nextId(),
+              id: nextId(), // Hoặc dùng raw.id nếu có
               side,
               author,
-              content: content,
-              type: msgType,
-              time:
-                typeof time === "string"
+              type: type,       // 'file', 'image', hoặc 'text'
+              content: content, // Object (nếu là file) hoặc String (nếu là text/ảnh)
+              time: typeof time === "string"
                   ? time
-                  : new Date().toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }),
+                  : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             };
           });
 
