@@ -63,6 +63,8 @@ function extractHistoryList(unwrapped) {
   if (Array.isArray(d?.list)) return d.list;
   if (Array.isArray(d?.messages)) return d.messages;
   if (Array.isArray(d?.mes)) return d.mes;
+  // GET_ROOM_CHAT_MES
+  if (Array.isArray(d?.chatData)) return d.chatData;
   return [];
 }
 
@@ -91,6 +93,7 @@ function normalizeHistoryItem(item) {
   const time =
     item.time ??
     item.actionTime ??
+    item.createTime ??
     item.createAt ??
     item.createdAt ??
     item.date;
@@ -186,7 +189,7 @@ export default function ChatWindow({
   initialMessages,
   onToggleInfo,
   chatType = "room", // 'room' | 'people'
-  chatTo = "ABC",
+  chatTo = "36",
   currentUsername,
 }) {
 
