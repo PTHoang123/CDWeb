@@ -1,22 +1,14 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
     X, Download, Share2, RotateCcw, RotateCw,
     ZoomIn, ZoomOut, ChevronUp, ChevronDown, Calendar
 } from "lucide-react";
 import "./imageGallery.css";
 
-const ImageGalleryModal = ({ isOpen, onClose, currentImage, allMessages }) => {
+const ImageGalleryModal = ({ isOpen, onClose, currentImage, allMessages, onSelectImage }) => {
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
-    const [selectedImg, setSelectedImg] = useState(currentImage);
-
-    useEffect(() => {
-        if (currentImage) {
-            setSelectedImg(currentImage);
-            setZoom(1); // Reset zoom về 1 khi đổi ảnh
-            setRotation(0); // Reset xoay về 0 khi đổi ảnh
-        }
-    }, [currentImage, isOpen]);
+    const selectedImg = currentImage;
 
 
     // Lọc ra tất cả các tin nhắn là ảnh và nhóm theo ngày
@@ -95,9 +87,9 @@ const ImageGalleryModal = ({ isOpen, onClose, currentImage, allMessages }) => {
                                             key={img.id}
                                             className={`thumb-item ${selectedImg.id === img.id ? 'active' : ''}`}
                                             onClick={() => {
-                                                setSelectedImg(img);
                                                 setZoom(1);
                                                 setRotation(0);
+                                                onSelectImage?.(img);
                                             }}
                                         >
                                             <img src={img.content} alt="thumb" />

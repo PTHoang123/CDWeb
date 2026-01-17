@@ -1,10 +1,23 @@
-import React, { useState, useMemo} from 'react';
+import React, { useState, useMemo } from "react";
 import {
-    Bell, Pin, Users, Edit2, ChevronDown, ChevronLeft,
-    Search, Folder, FileText, FileCode, Link as LinkIcon,
-    MoreHorizontal, Clock, EyeOff, AlertTriangle, Trash2,
-} from 'lucide-react';
-import './InfoChatAndRepo.css';
+  Bell,
+  Pin,
+  Users,
+  Edit2,
+  ChevronDown,
+  ChevronLeft,
+  Search,
+  Folder,
+  FileText,
+  FileCode,
+  Link as LinkIcon,
+  MoreHorizontal,
+  Clock,
+  EyeOff,
+  AlertTriangle,
+  Trash2,
+} from "lucide-react";
+import "./InfoChatAndRepo.css";
 
 // --- MOCK DATA CHO PHẦN INFO (Mình thêm dữ liệu cho đủ > 10 cái để test) ---
 // const MOCK_PREVIEW_IMAGES = [
@@ -89,348 +102,498 @@ import './InfoChatAndRepo.css';
 // ];
 
 export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
-    const [activeTab, setActiveTab] = useState('info');
-    const [activeRepoTab, setActiveRepoTab] = useState('media');
-    const [sections, setSections] = useState({
-        media: true, files: true, links: true, security: true
+  const [activeTab, setActiveTab] = useState("info");
+  const [activeRepoTab, setActiveRepoTab] = useState("media");
+  const [sections, setSections] = useState({
+    media: true,
+    files: true,
+    links: true,
+    security: true,
+  });
+  // --- XỬ LÝ DỮ LIỆU TỪ TIN NHẮN THẬT ---
+
+  const toDeterministicId = (m) => {
+    if (m?.id != null) return m.id;
+    const content =
+      typeof m?.content === "string"
+        ? m.content
+        : JSON.stringify(m?.content ?? "");
+    return `temp-${m?.type ?? "msg"}-${m?.time ?? ""}-${content}`;
+  };
+
+  const toDateObj = (m) => {
+    if (typeof m?.id === "number") return new Date(m.id);
+    if (typeof m?.time === "string" || typeof m?.time === "number") {
+      const d = new Date(m.time);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    return new Date(0);
+  };
+
+  // 1. Lọc danh sách ẢNH
+  const mediaList = useMemo(() => {
+    return allMessages
+      .filter((m) => m.type === "image")
+      .map((m) => ({
+        id: toDeterministicId(m),
+        src: m.content,
+        time: m.time || "",
+        dateObj: toDateObj(m),
+      }))
+      .reverse(); // Mới nhất lên đầu
+  }, [allMessages]);
+
+  // 2. Lọc danh sách FILE
+  const fileList = useMemo(() => {
+    return allMessages
+      .filter((m) => m.type === "file")
+      .map((m) => {
+        // Content file thường là object {name, size...} hoặc string JSON
+        let content = m.content;
+        if (typeof content === "string") {
+          try {
+            content = JSON.parse(content);
+          } catch {
+            /* ignore */
+          }
+        }
+        // Nếu content vẫn là string (tên file) thì xử lý tạm
+        const fileName =
+          content?.name ||
+          (typeof content === "string" ? content : "File không tên");
+
+        return {
+          id: toDeterministicId(m),
+          name: fileName,
+          size: content?.size || "Unknown",
+          type: checkFileType(fileName),
+          time: m.time,
+          dateObj: toDateObj(m),
+        };
+      })
+      .reverse();
+  }, [allMessages]);
+
+  // 3. Lọc danh sách LINK (Tìm trong tin nhắn Text)
+  const linkList = useMemo(() => {
+    return allMessages
+      .filter((m) => m.type === "text" && typeof m.content === "string")
+      .reduce((acc, m) => {
+        // Regex tìm url đơn giản
+        const urls = m.content.match(/(https?:\/\/[^\s]+)/g);
+        if (urls) {
+          urls.forEach((url) => {
+            acc.push({
+              id: toDeterministicId(m),
+              title: url, // Có thể cải tiến lấy title nếu backend hỗ trợ
+              url: url,
+              time: m.time,
+              dateObj: toDateObj(m),
+            });
+          });
+        }
+        return acc;
+      }, [])
+      .reverse();
+  }, [allMessages]);
+
+  // --- Helper: Gom nhóm theo ngày cho phần Kho lưu trữ ---
+  const groupItemsByDate = (items) => {
+    const groups = {};
+    items.forEach((item) => {
+      // Format ngày: dd/mm/yyyy
+      const dateStr = item.dateObj.toLocaleDateString("vi-VN");
+      if (!groups[dateStr]) groups[dateStr] = [];
+      groups[dateStr].push(item);
     });
-    // --- XỬ LÝ DỮ LIỆU TỪ TIN NHẮN THẬT ---
+    return Object.keys(groups).map((date) => ({
+      date,
+      items: groups[date],
+    }));
+  };
 
-    // 1. Lọc danh sách ẢNH
-    const mediaList = useMemo(() => {
-        return allMessages
-            .filter(m => m.type === 'image')
-            .map(m => ({
-                id: m.id || Math.random(), // Fallback id nếu tin nhắn đang gửi chưa có id
-                src: m.content,
-                time: m.time || new Date().toLocaleTimeString(),
-                // Tạo đối tượng Date để gom nhóm. Nếu id là timestamp (số) thì dùng, không thì dùng thời gian hiện tại
-                dateObj: new Date(typeof m.id === 'number' ? m.id : Date.now())
-            }))
-            .reverse(); // Mới nhất lên đầu
-    }, [allMessages]);
+  const repoMediaGroups = useMemo(
+    () => groupItemsByDate(mediaList),
+    [mediaList]
+  );
+  const repoFileGroups = useMemo(() => groupItemsByDate(fileList), [fileList]);
+  const repoLinkGroups = useMemo(() => groupItemsByDate(linkList), [linkList]);
 
-    // 2. Lọc danh sách FILE
-    const fileList = useMemo(() => {
-        return allMessages
-            .filter(m => m.type === 'file')
-            .map(m => {
-                // Content file thường là object {name, size...} hoặc string JSON
-                let content = m.content;
-                if (typeof content === 'string') {
-                    try { content = JSON.parse(content); } catch(e) {}
-                }
-                // Nếu content vẫn là string (tên file) thì xử lý tạm
-                const fileName = content?.name || (typeof content === 'string' ? content : "File không tên");
+  const isRoom = activeChat?.type === "room";
+  const displayName = activeChat?.name || "Cuộc trò chuyện";
+  const displayAvatar = isRoom
+    ? "https://cdn-icons-png.flaticon.com/512/166/166258.png"
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`; // Ảnh mặc định cho User
+  const toggleSection = (key) => {
+    setSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
-                return {
-                    id: m.id,
-                    name: fileName,
-                    size: content?.size || "Unknown",
-                    type: checkFileType(fileName),
-                    time: m.time,
-                    dateObj: new Date(typeof m.id === 'number' ? m.id : Date.now())
-                };
-            })
-            .reverse();
-    }, [allMessages]);
+  const openRepoTab = (subTab) => {
+    setActiveRepoTab(subTab);
+    setActiveTab("repo");
+  };
 
-    // 3. Lọc danh sách LINK (Tìm trong tin nhắn Text)
-    const linkList = useMemo(() => {
-        return allMessages
-            .filter(m => m.type === 'text' && typeof m.content === 'string')
-            .reduce((acc, m) => {
-                // Regex tìm url đơn giản
-                const urls = m.content.match(/(https?:\/\/[^\s]+)/g);
-                if (urls) {
-                    urls.forEach(url => {
-                        acc.push({
-                            id: m.id,
-                            title: url, // Có thể cải tiến lấy title nếu backend hỗ trợ
-                            url: url,
-                            time: m.time,
-                            dateObj: new Date(typeof m.id === 'number' ? m.id : Date.now())
-                        });
-                    });
-                }
-                return acc;
-            }, [])
-            .reverse();
-    }, [allMessages]);
-
-    // --- Helper: Gom nhóm theo ngày cho phần Kho lưu trữ ---
-    const groupItemsByDate = (items) => {
-        const groups = {};
-        items.forEach(item => {
-            // Format ngày: dd/mm/yyyy
-            const dateStr = item.dateObj.toLocaleDateString("vi-VN");
-            if (!groups[dateStr]) groups[dateStr] = [];
-            groups[dateStr].push(item);
-        });
-        return Object.keys(groups).map(date => ({
-            date,
-            items: groups[date]
-        }));
-    };
-
-    const repoMediaGroups = useMemo(() => groupItemsByDate(mediaList), [mediaList]);
-    const repoFileGroups = useMemo(() => groupItemsByDate(fileList), [fileList]);
-    const repoLinkGroups = useMemo(() => groupItemsByDate(linkList), [linkList]);
-
-    const isRoom = activeChat?.type === 'room';
-    const displayName = activeChat?.name || "Cuộc trò chuyện";
-    const displayAvatar = isRoom
-        ? "https://cdn-icons-png.flaticon.com/512/166/166258.png"
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`; // Ảnh mặc định cho User
-    const toggleSection = (key) => {
-        setSections(prev => ({ ...prev, [key]: !prev[key] }));
-    };
-
-    const openRepoTab = (subTab) => {
-        setActiveRepoTab(subTab);
-        setActiveTab('repo');
-    };
-
-    // ================== RENDER INFO MODE ==================
-    const renderInfoMode = () => (
-        <>
-            <div className="info-profile">
-                <img
-                    src={displayAvatar}
-                    alt="avatar"
-                    className="info-avatar-large"
-                />
-                <div className="info-name-row">
-                    <span>{displayName}</span>
-                    <Edit2 size={16} color="#7589a3" style={{ cursor: 'pointer' }} />
-                </div>
-
-                <div className="info-actions">
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Bell size={20} /></div>
-                        <span>Tắt thông báo</span>
-                    </div>
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Pin size={20} /></div>
-                        <span>Ghim hội thoại</span>
-                    </div>
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Users size={20} /></div>
-                        <span>Tạo nhóm</span>
-                    </div>
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Search size={20} /></div>
-                        <span>Tìm tin nhắn</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Mục 1: Ảnh / Video (Preview) - HIỂN THỊ TỐI ĐA 8 ẢNH */}
-            {/* Mục 1: Ảnh / Video */}
-            <div className="info-section">
-                <div className="section-header" onClick={() => toggleSection('media')}>
-                    <span>Ảnh / Video ({mediaList.length})</span>
-                    <ChevronDown size={18} className={`section-arrow ${!sections.media ? 'collapsed' : ''}`} />
-                </div>
-                {sections.media && (
-                    <>
-                        <div className="media-preview-grid">
-                            {mediaList.length === 0 ? <p className="empty-text">Chưa có ảnh</p> :
-                                mediaList.slice(0, 8).map((item, i) => (
-                                    <div key={i} className="media-preview-item">
-                                        <img src={item.src} alt="media" />
-                                    </div>
-                                ))}
-                        </div>
-                        {mediaList.length > 0 &&
-                            <button className="btn-view-all" onClick={() => openRepoTab('media')}>Xem tất cả</button>
-                        }
-                    </>
-                )}
-            </div>
-
-            {/* Mục 2: File */}
-            <div className="info-section">
-                <div className="section-header" onClick={() => toggleSection('files')}>
-                    <span>File đã gửi ({fileList.length})</span>
-                    <ChevronDown size={18} className={`section-arrow ${!sections.files ? 'collapsed' : ''}`} />
-                </div>
-                {sections.files && (
-                    <div className="file-preview-list">
-                        {fileList.length === 0 ? <p className="empty-text">Chưa có file</p> :
-                            fileList.slice(0, 3).map((file, i) => (
-                                <div key={i} className="link-item">
-                                    <FileIconType type={file.type} />
-                                    <div className="item-details">
-                                        <div className="item-name">{file.name}</div>
-                                        <div className="item-meta">{file.size}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        {fileList.length > 0 &&
-                            <button className="btn-view-all" onClick={() => openRepoTab('file')}>Xem tất cả</button>
-                        }
-                    </div>
-                )}
-            </div>
-
-            {/* Mục 3: Link */}
-            <div className="info-section">
-                <div className="section-header" onClick={() => toggleSection('links')}>
-                    <span>Link đã gửi ({linkList.length})</span>
-                    <ChevronDown size={18} className={`section-arrow ${!sections.links ? 'collapsed' : ''}`} />
-                </div>
-                {sections.links && (
-                    <div className="file-preview-list">
-                        {linkList.length === 0 ? <p className="empty-text">Chưa có link</p> :
-                            linkList.slice(0, 3).map((link, i) => (
-                                <div key={i} className="link-item">
-                                    <div className="file-icon link"><LinkIcon size={18}/></div>
-                                    <div className="item-details">
-                                        <div className="item-name">{link.title}</div>
-                                        <div className="item-meta" style={{color: '#0068ff'}}>{link.url}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        {linkList.length > 0 &&
-                            <button className="btn-view-all" onClick={() => openRepoTab('link')}>Xem tất cả</button>
-                        }
-                    </div>
-                )}
-            </div>
-
-            {/* Mục 4: Bảo mật */}
-            <div className="info-section">
-                <div className="section-header" onClick={() => toggleSection('security')}>
-                    <span>Thiết lập bảo mật</span>
-                    <ChevronDown size={18} className={`section-arrow ${!sections.security ? 'collapsed' : ''}`} />
-                </div>
-                {sections.security && (
-                    <div className="setting-list">
-                        <div className="setting-item">
-                            <Clock size={20} />
-                            <span style={{ flex: 1 }}>Tin nhắn tự xóa</span>
-                            <span style={{ fontSize: '13px', color: '#7589a3' }}>Tắt</span>
-                        </div>
-                        <div className="setting-item">
-                            <EyeOff size={20} />
-                            <span>Ẩn trò chuyện</span>
-                        </div>
-                        <div className="setting-item">
-                            <AlertTriangle size={20} />
-                            <span>Báo xấu</span>
-                        </div>
-                        <div className="setting-item delete">
-                            <Trash2 size={20} />
-                            <span>Xóa lịch sử trò chuyện</span>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </>
-    );
-
-    // 2. Màn hình KHO LƯU TRỮ (Repo Mode)
-    const renderRepoMode = () => (
-        <div className="repo-container">
-            <div className="panel-header">
-                <div className="repo-header-left" onClick={() => setActiveTab('info')}>
-                    <ChevronLeft size={24} />
-                </div>
-                <span>Kho lưu trữ</span>
-            </div>
-
-            <div className="repo-tabs">
-                <div className={`repo-tab ${activeRepoTab === 'media' ? 'active' : ''}`} onClick={() => setActiveRepoTab('media')}>Ảnh/Video</div>
-                <div className={`repo-tab ${activeRepoTab === 'file' ? 'active' : ''}`} onClick={() => setActiveRepoTab('file')}>File</div>
-                <div className={`repo-tab ${activeRepoTab === 'link' ? 'active' : ''}`} onClick={() => setActiveRepoTab('link')}>Link</div>
-            </div>
-
-            <div className="panel-body repo-list-container">
-                {activeRepoTab === 'media' && (
-                    repoMediaGroups.length === 0 ? <div className="empty-state">Không có hình ảnh</div> :
-                        repoMediaGroups.map((group, idx) => (
-                            <div key={idx} className="repo-group">
-                                <div className="date-group-label">{group.date}</div>
-                                <div className="repo-media-grid">
-                                    {group.items.map((item, i) => (
-                                        <div key={i} className="media-preview-item">
-                                            <img src={item.src} alt="repo-media" loading="lazy" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )))}
-
-                {activeRepoTab === 'file' && (
-                    repoFileGroups.length === 0 ? <div className="empty-state">Không có file</div> :
-                        repoFileGroups.map((group, idx) => (
-                            <div key={idx} className="repo-group">
-                                <div className="date-group-label">{group.date}</div>
-                                {group.items.map((file, i) => (
-                                    <div key={i} className="link-item" style={{marginBottom: 10}}>
-                                        <FileIconType type={file.type} />
-                                        <div className="item-details">
-                                            <div className="item-name">{file.name}</div>
-                                            <div className="item-meta">{file.size}</div>
-                                        </div>
-                                        <MoreHorizontal size={16} color="#7589a3" />
-                                    </div>
-                                ))}
-                            </div>
-                        )))}
-
-                {activeRepoTab === 'link' && (
-                    repoLinkGroups.length === 0 ? <div className="empty-state">Không có link</div> :
-                        repoLinkGroups.map((group, idx) => (
-                            <div key={idx} className="repo-group">
-                                <div className="date-group-label">{group.date}</div>
-                                {group.items.map((link, i) => (
-                                    <div key={i} className="link-item" style={{marginBottom: 12}}>
-                                        <div className="file-icon link"><LinkIcon size={20}/></div>
-                                        <div className="item-details">
-                                            <div className="item-name">{link.title}</div>
-                                            <div className="item-meta" style={{color: '#0068ff'}}>{link.url}</div>
-                                        </div>
-                                        <MoreHorizontal size={16} color="#7589a3" />
-                                    </div>
-                                ))}
-                            </div>
-                        )))}
-            </div>
+  // ================== RENDER INFO MODE ==================
+  const renderInfoMode = () => (
+    <>
+      <div className="info-profile">
+        <img src={displayAvatar} alt="avatar" className="info-avatar-large" />
+        <div className="info-name-row">
+          <span>{displayName}</span>
+          <Edit2 size={16} color="#7589a3" style={{ cursor: "pointer" }} />
         </div>
-    );
 
-    return (
-        <aside className="info-panel-container">
-            {activeTab === 'info' ? (
-                <>
-                    <div className="panel-header">Thông tin hội thoại</div>
-                    <div className="panel-body">{renderInfoMode()}</div>
-                </>
-            ) : (
-                renderRepoMode()
+        <div className="info-actions">
+          <div className="action-item">
+            <div className="action-icon-circle">
+              <Bell size={20} />
+            </div>
+            <span>Tắt thông báo</span>
+          </div>
+          <div className="action-item">
+            <div className="action-icon-circle">
+              <Pin size={20} />
+            </div>
+            <span>Ghim hội thoại</span>
+          </div>
+          <div className="action-item">
+            <div className="action-icon-circle">
+              <Users size={20} />
+            </div>
+            <span>Tạo nhóm</span>
+          </div>
+          <div className="action-item">
+            <div className="action-icon-circle">
+              <Search size={20} />
+            </div>
+            <span>Tìm tin nhắn</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Mục 1: Ảnh / Video (Preview) - HIỂN THỊ TỐI ĐA 8 ẢNH */}
+      {/* Mục 1: Ảnh / Video */}
+      <div className="info-section">
+        <div className="section-header" onClick={() => toggleSection("media")}>
+          <span>Ảnh / Video ({mediaList.length})</span>
+          <ChevronDown
+            size={18}
+            className={`section-arrow ${!sections.media ? "collapsed" : ""}`}
+          />
+        </div>
+        {sections.media && (
+          <>
+            <div className="media-preview-grid">
+              {mediaList.length === 0 ? (
+                <p className="empty-text">Chưa có ảnh</p>
+              ) : (
+                mediaList.slice(0, 8).map((item, i) => (
+                  <div key={i} className="media-preview-item">
+                    <img src={item.src} alt="media" />
+                  </div>
+                ))
+              )}
+            </div>
+            {mediaList.length > 0 && (
+              <button
+                className="btn-view-all"
+                onClick={() => openRepoTab("media")}
+              >
+                Xem tất cả
+              </button>
             )}
-        </aside>
-    );
-};
+          </>
+        )}
+      </div>
+
+      {/* Mục 2: File */}
+      <div className="info-section">
+        <div className="section-header" onClick={() => toggleSection("files")}>
+          <span>File đã gửi ({fileList.length})</span>
+          <ChevronDown
+            size={18}
+            className={`section-arrow ${!sections.files ? "collapsed" : ""}`}
+          />
+        </div>
+        {sections.files && (
+          <div className="file-preview-list">
+            {fileList.length === 0 ? (
+              <p className="empty-text">Chưa có file</p>
+            ) : (
+              fileList.slice(0, 3).map((file, i) => (
+                <div key={i} className="link-item">
+                  <FileIconType type={file.type} />
+                  <div className="item-details">
+                    <div className="item-name">{file.name}</div>
+                    <div className="item-meta">{file.size}</div>
+                  </div>
+                </div>
+              ))
+            )}
+            {fileList.length > 0 && (
+              <button
+                className="btn-view-all"
+                onClick={() => openRepoTab("file")}
+              >
+                Xem tất cả
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Mục 3: Link */}
+      <div className="info-section">
+        <div className="section-header" onClick={() => toggleSection("links")}>
+          <span>Link đã gửi ({linkList.length})</span>
+          <ChevronDown
+            size={18}
+            className={`section-arrow ${!sections.links ? "collapsed" : ""}`}
+          />
+        </div>
+        {sections.links && (
+          <div className="file-preview-list">
+            {linkList.length === 0 ? (
+              <p className="empty-text">Chưa có link</p>
+            ) : (
+              linkList.slice(0, 3).map((link, i) => (
+                <div key={i} className="link-item">
+                  <div className="file-icon link">
+                    <LinkIcon size={18} />
+                  </div>
+                  <div className="item-details">
+                    <div className="item-name">{link.title}</div>
+                    <div className="item-meta" style={{ color: "#0068ff" }}>
+                      {link.url}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+            {linkList.length > 0 && (
+              <button
+                className="btn-view-all"
+                onClick={() => openRepoTab("link")}
+              >
+                Xem tất cả
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Mục 4: Bảo mật */}
+      <div className="info-section">
+        <div
+          className="section-header"
+          onClick={() => toggleSection("security")}
+        >
+          <span>Thiết lập bảo mật</span>
+          <ChevronDown
+            size={18}
+            className={`section-arrow ${!sections.security ? "collapsed" : ""}`}
+          />
+        </div>
+        {sections.security && (
+          <div className="setting-list">
+            <div className="setting-item">
+              <Clock size={20} />
+              <span style={{ flex: 1 }}>Tin nhắn tự xóa</span>
+              <span style={{ fontSize: "13px", color: "#7589a3" }}>Tắt</span>
+            </div>
+            <div className="setting-item">
+              <EyeOff size={20} />
+              <span>Ẩn trò chuyện</span>
+            </div>
+            <div className="setting-item">
+              <AlertTriangle size={20} />
+              <span>Báo xấu</span>
+            </div>
+            <div className="setting-item delete">
+              <Trash2 size={20} />
+              <span>Xóa lịch sử trò chuyện</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // 2. Màn hình KHO LƯU TRỮ (Repo Mode)
+  const renderRepoMode = () => (
+    <div className="repo-container">
+      <div className="panel-header">
+        <div className="repo-header-left" onClick={() => setActiveTab("info")}>
+          <ChevronLeft size={24} />
+        </div>
+        <span>Kho lưu trữ</span>
+      </div>
+
+      <div className="repo-tabs">
+        <div
+          className={`repo-tab ${activeRepoTab === "media" ? "active" : ""}`}
+          onClick={() => setActiveRepoTab("media")}
+        >
+          Ảnh/Video
+        </div>
+        <div
+          className={`repo-tab ${activeRepoTab === "file" ? "active" : ""}`}
+          onClick={() => setActiveRepoTab("file")}
+        >
+          File
+        </div>
+        <div
+          className={`repo-tab ${activeRepoTab === "link" ? "active" : ""}`}
+          onClick={() => setActiveRepoTab("link")}
+        >
+          Link
+        </div>
+      </div>
+
+      <div className="panel-body repo-list-container">
+        {activeRepoTab === "media" &&
+          (repoMediaGroups.length === 0 ? (
+            <div className="empty-state">Không có hình ảnh</div>
+          ) : (
+            repoMediaGroups.map((group, idx) => (
+              <div key={idx} className="repo-group">
+                <div className="date-group-label">{group.date}</div>
+                <div className="repo-media-grid">
+                  {group.items.map((item, i) => (
+                    <div key={i} className="media-preview-item">
+                      <img src={item.src} alt="repo-media" loading="lazy" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ))}
+
+        {activeRepoTab === "file" &&
+          (repoFileGroups.length === 0 ? (
+            <div className="empty-state">Không có file</div>
+          ) : (
+            repoFileGroups.map((group, idx) => (
+              <div key={idx} className="repo-group">
+                <div className="date-group-label">{group.date}</div>
+                {group.items.map((file, i) => (
+                  <div
+                    key={i}
+                    className="link-item"
+                    style={{ marginBottom: 10 }}
+                  >
+                    <FileIconType type={file.type} />
+                    <div className="item-details">
+                      <div className="item-name">{file.name}</div>
+                      <div className="item-meta">{file.size}</div>
+                    </div>
+                    <MoreHorizontal size={16} color="#7589a3" />
+                  </div>
+                ))}
+              </div>
+            ))
+          ))}
+
+        {activeRepoTab === "link" &&
+          (repoLinkGroups.length === 0 ? (
+            <div className="empty-state">Không có link</div>
+          ) : (
+            repoLinkGroups.map((group, idx) => (
+              <div key={idx} className="repo-group">
+                <div className="date-group-label">{group.date}</div>
+                {group.items.map((link, i) => (
+                  <div
+                    key={i}
+                    className="link-item"
+                    style={{ marginBottom: 12 }}
+                  >
+                    <div className="file-icon link">
+                      <LinkIcon size={20} />
+                    </div>
+                    <div className="item-details">
+                      <div className="item-name">{link.title}</div>
+                      <div className="item-meta" style={{ color: "#0068ff" }}>
+                        {link.url}
+                      </div>
+                    </div>
+                    <MoreHorizontal size={16} color="#7589a3" />
+                  </div>
+                ))}
+              </div>
+            ))
+          ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <aside className="info-panel-container">
+      {activeTab === "info" ? (
+        <>
+          <div className="panel-header">Thông tin hội thoại</div>
+          <div className="panel-body">{renderInfoMode()}</div>
+        </>
+      ) : (
+        renderRepoMode()
+      )}
+    </aside>
+  );
+}
 
 // --- Helper Components ---
 const checkFileType = (fileName) => {
-    if (!fileName) return 'file';
-    const ext = fileName.split('.').pop().toLowerCase();
-    if (['doc', 'docx'].includes(ext)) return 'word';
-    if (['xls', 'xlsx'].includes(ext)) return 'excel';
-    if (['pdf'].includes(ext)) return 'pdf';
-    if (['zip', 'rar'].includes(ext)) return 'zip';
-    return 'file';
+  if (!fileName) return "file";
+  const ext = fileName.split(".").pop().toLowerCase();
+  if (["doc", "docx"].includes(ext)) return "word";
+  if (["xls", "xlsx"].includes(ext)) return "excel";
+  if (["pdf"].includes(ext)) return "pdf";
+  if (["zip", "rar"].includes(ext)) return "zip";
+  return "file";
 };
 
 const FileIconType = ({ type }) => {
-    if (type === 'folder') return <div className="file-icon folder"><Folder size={18} fill="#FFC107" stroke="#FFC107"/></div>
-    if (type === 'word') return <div className="file-icon word" style={{backgroundColor: '#e6f2ff', color: '#0078d4'}}>W</div>
-    if (type === 'zip') return <div className="file-icon" style={{backgroundColor: '#f0f0f0'}}><FileCode size={18}/></div>
-    if (type === 'excel') return <div className="file-icon excel" style={{backgroundColor: '#e6fffa', color: '#28a745'}}>X</div>
-    if (type === 'pdf') return <div className="file-icon pdf" style={{backgroundColor: '#ffe6e6', color: '#dc3545'}}>PDF</div>
-    return <div className="file-icon"><FileText size={18}/></div>
+  if (type === "folder")
+    return (
+      <div className="file-icon folder">
+        <Folder size={18} fill="#FFC107" stroke="#FFC107" />
+      </div>
+    );
+  if (type === "word")
+    return (
+      <div
+        className="file-icon word"
+        style={{ backgroundColor: "#e6f2ff", color: "#0078d4" }}
+      >
+        W
+      </div>
+    );
+  if (type === "zip")
+    return (
+      <div className="file-icon" style={{ backgroundColor: "#f0f0f0" }}>
+        <FileCode size={18} />
+      </div>
+    );
+  if (type === "excel")
+    return (
+      <div
+        className="file-icon excel"
+        style={{ backgroundColor: "#e6fffa", color: "#28a745" }}
+      >
+        X
+      </div>
+    );
+  if (type === "pdf")
+    return (
+      <div
+        className="file-icon pdf"
+        style={{ backgroundColor: "#ffe6e6", color: "#dc3545" }}
+      >
+        PDF
+      </div>
+    );
+  return (
+    <div className="file-icon">
+      <FileText size={18} />
+    </div>
+  );
 };
