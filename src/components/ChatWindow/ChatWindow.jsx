@@ -1,22 +1,12 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import {
-  Smile,
-  Image as ImageIcon,
-  Paperclip,
-  Contact,
-  Scan,
-  Type,
-  Zap,
-  CreditCard,
-  MoreHorizontal,
-  ThumbsUp,
-  Send,
-  Search,
-  PanelRightClose,
-  Sticker,
-  FileText,
-  Folder,
+  Smile, Image as ImageIcon,
+  Paperclip, Contact, Scan,
+  Type, Zap, CreditCard,
+  MoreHorizontal, ThumbsUp,
+  Send, Search, PanelRightClose,
+  Sticker, FileText, Folder,
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
@@ -129,9 +119,32 @@ const parseContentAndType = (rawContent) => {
 
   return { type: "text", content: rawContent };
 };
+// Hàm kiểm tra xem nội dung là File, Ảnh hay Text
+const parseMessageContent = (rawContent) => {
+  // 1. Kiểm tra xem có phải là JSON File (đã quy ước dataType="file_base64")
+  try {
+    if (typeof rawContent === "string" && rawContent.trim().startsWith("{")) {
+      const parsed = JSON.parse(rawContent);
+      if (parsed && parsed.dataType === "file_base64") {
+        return { type: "file", content: parsed }; // Trả về dạng File
+      }
+    }
+  } catch (e) {
+    // Bỏ qua lỗi parse nếu là text thường
+  }
 
+  // 2. Kiểm tra nếu là Ảnh (Logic cũ của bạn)
+  // Lưu ý: Nếu bạn có hàm isImage riêng thì dùng nó, hoặc dùng regex này
+  if (typeof rawContent === "string") {
+    if (rawContent.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || rawContent.startsWith("data:image")) {
+      return { type: "image", content: rawContent };
+    }
+  }
 
-// Hàm upload ảnh lên ImgBB
+  // 3. Mặc định là Text
+  return { type: "text", content: rawContent };
+};
+
 const uploadToImgBB = async (file) => {
   const formData = new FormData();
   formData.append("image", file);
@@ -301,28 +314,18 @@ export default function ChatWindow({
               : list;
 
           const mapped = ordered.map((raw) => {
-            const { content:rawContent, author, time } = normalizeHistoryItem(raw);
+            const { content: rawContent, author, time } = normalizeHistoryItem(raw);
             const side = isSameUser(author, currentUsername) ? "right" : "left";
             const { type, content } = parseContentAndType(rawContent);
-            // let msgType = "text"; // Mặc định là text
-            // // Kiểm tra nếu nội dung bắt đầu bằng mã Base64 của ảnh
-            // if (isImage(content)) {
-            //   msgType = "image";
-            // }
-
             return {
-              id: nextId(),
+              id: nextId(), // Hoặc dùng raw.id nếu có
               side,
               author,
-              type: type,
-              content: content,
-              time:
-                typeof time === "string"
+              type: type,       // 'file', 'image', hoặc 'text'
+              content: content, // Object (nếu là file) hoặc String (nếu là text/ảnh)
+              time: typeof time === "string"
                   ? time
-                  : new Date().toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }),
+                  : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             };
           });
 
@@ -594,6 +597,7 @@ export default function ChatWindow({
           (from && currentUsername && from === currentUsername);
         if (!matchesPeer) return;
       }
+      const { type, content } = parseMessageContent(mes);
 
       setMessages((prev) => [
         ...prev,
@@ -601,8 +605,9 @@ export default function ChatWindow({
           id: nextId(),
           side: isSameUser(from, currentUsername) ? "right" : "left",
           author: from || "Unknown",
-          content: String(mes),
-          time: new Date().toLocaleTimeString([], {
+          type: type,
+          content: content,
+          time: new Date().toLocaleTimeString("vi-VN", {
             hour: "2-digit",
             minute: "2-digit",
           }),
