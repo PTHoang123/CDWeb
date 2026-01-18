@@ -9,6 +9,7 @@ const ImageGalleryModal = ({ isOpen, onClose, currentImage, allMessages = [] }) 
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [selectedImg, setSelectedImg] = useState(currentImage);
+    const [showSidebar, setShowSidebar] = useState(true);
 
     // Reset khi mở modal hoặc đổi ảnh input
     useEffect(() => {

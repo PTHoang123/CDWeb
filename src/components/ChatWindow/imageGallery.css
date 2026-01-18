@@ -21,31 +21,36 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    width: 100%;
 }
 
 .image-viewer-container {
-    flex: 1;
+    flex: 1; /* Quan trọng: Tự động chiếm hết khoảng trống còn lại */
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     position: relative;
     background: #000;
+    overflow: hidden; /* Cắt phần thừa khi zoom */
+    transition: all 0.3s ease; /* Hiệu ứng mượt khi Sidebar ẩn/hiện */
 }
 
-.image-wrapper img {
-    max-width: 80vw;
-    max-height: 70vh;
-    object-fit: contain;
-}
-
-/* Sidebar bên phải */
+/* Sidebar giữ nguyên width cố định */
 .image-sidebar {
     width: 280px;
     background: #1a1a1a;
     border-left: 1px solid #333;
     display: flex;
     flex-direction: column;
+    /* Không cần position absolute, để nó nằm trong dòng chảy flex */
+    flex-shrink: 0; /* Không bị co lại */
+}
+
+.image-wrapper img {
+    max-width: 80vw;
+    max-height: 70vh;
+    object-fit: contain;
 }
 
 .sidebar-scroll {
