@@ -949,6 +949,7 @@ export default function ChatWindow({
         currentImage={selectedGalleryImg}
         onSelectImage={setSelectedGalleryImg}
         allMessages={messages}
+        //
       />
     </section>
   );
