@@ -34,7 +34,7 @@ const safeDecode = (str) => {
   try {
     // Thử giải mã Base64 sang UTF-8
     return decodeURIComponent(escape(atob(str)));
-  } catch (e) {
+  } catch {
     // Nếu không phải Base64 (tin nhắn cũ hoặc text thường), giữ nguyên
     return str;
   }
@@ -132,7 +132,7 @@ const parseContentAndType = (rawContent) => {
         return { type: "file", content: parsed }; // Trả về Object
       }
     }
-  } catch (e) {
+  } catch {
     // Bỏ qua lỗi
   }
 
@@ -161,8 +161,8 @@ const parseMessageContent = (rawContent) => {
         return { type: "file", content: parsed };
       }
     }
-  } catch (e) {
-  //   bỏ qua lỗi
+  } catch {
+    // bỏ qua lỗi
   }
 
   if (typeof rawContent === "string") {
@@ -943,10 +943,12 @@ export default function ChatWindow({
         </form>
       </footer>
       <ImageGalleryModal
-          isOpen={isGalleryOpen}
-          onClose={() => setIsGalleryOpen(false)}
-          currentImage={selectedGalleryImg}
-          allMessages={messages}
+        key={selectedGalleryImg?.id ?? selectedGalleryImg?.content ?? "none"}
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        currentImage={selectedGalleryImg}
+        onSelectImage={setSelectedGalleryImg}
+        allMessages={messages}
       />
     </section>
   );
