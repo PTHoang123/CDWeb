@@ -949,6 +949,5 @@ export default function ChatWindow({
           allMessages={messages}
       />
     </section>
-
   );
 }

@@ -1,92 +1,14 @@
-import React, { useState, useMemo} from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Bell, Pin, Users, Edit2, ChevronDown, ChevronLeft,
     Search, Folder, FileText, FileCode, Link as LinkIcon,
     MoreHorizontal, Clock, EyeOff, AlertTriangle, Trash2,
+    Image as ImageIcon
 } from 'lucide-react';
 import './InfoChatAndRepo.css';
 
-// --- MOCK DATA CHO PHẦN INFO (Mình thêm dữ liệu cho đủ > 10 cái để test) ---
-// const MOCK_PREVIEW_IMAGES = [
-//     "https://dominhhai.com/wp-content/uploads/2021/06/kiet-tac-cua-thien-nhien-qua-nhung-hinh-anh-dep-6.jpg",
-//     "https://tse2.mm.bing.net/th/id/OIP.LtCEQVhRFQL7emXb6oLAVAHaE7?w=626&h=417&rs=1&pid=ImgDetMain&o=7&rm=3",
-//     "https://img.freepik.com/premium-photo/sunlit-scene-overlooking-sakura-plantation-with-many-blooms-view-fudzi-mountain_935074-10748.jpg?w=1060",
-//     "https://tse2.mm.bing.net/th/id/OIP.LtCEQVhRFQL7emXb6oLAVAHaE7?w=626&h=417&rs=1&pid=ImgDetMain&o=7&rm=3",
-//     "https://dominhhai.com/wp-content/uploads/2021/06/kiet-tac-cua-thien-nhien-qua-nhung-hinh-anh-dep-6.jpg",
-//     "https://tse2.mm.bing.net/th/id/OIP.LtCEQVhRFQL7emXb6oLAVAHaE7?w=626&h=417&rs=1&pid=ImgDetMain&o=7&rm=3",
-//     "https://dominhhai.com/wp-content/uploads/2021/06/kiet-tac-cua-thien-nhien-qua-nhung-hinh-anh-dep-6.jpg",
-//     "https://tse2.mm.bing.net/th/id/OIP.LtCEQVhRFQL7emXb6oLAVAHaE7?w=626&h=417&rs=1&pid=ImgDetMain&o=7&rm=3",
-//     "https://dominhhai.com/wp-content/uploads/2021/06/kiet-tac-cua-thien-nhien-qua-nhung-hinh-anh-dep-6.jpg",
-//     "https://tse2.mm.bing.net/th/id/OIP.LtCEQVhRFQL7emXb6oLAVAHaE7?w=626&h=417&rs=1&pid=ImgDetMain&o=7&rm=3",
-// ];
-//
-// const MOCK_PREVIEW_FILES = [
-//     { name: "Snake game", size: "10.01 KB", date: "15/10/2025", type: "folder" },
-//     { name: "Báo cáo.docx", size: "2.5 MB", date: "14/10/2025", type: "word" },
-//     { name: "Source_code.zip", size: "15 MB", date: "12/10/2025", type: "zip" },
-//     { name: "Old_File.pdf", size: "1 MB", date: "01/10/2025", type: "pdf" },
-//     { name: "Bang_luong_T12.xlsx", size: "1.1 MB", type: "excel" },
-// ];
-//
-// const MOCK_PREVIEW_LINKS = [
-//     { title: "ThucHanh05 - Google Drive", url: "drive.google.com" },
-//     { title: "Tài liệu ReactJS", url: "react.dev" },
-//     { title: "Thiết kế Figma", url: "figma.com" },
-//     { title: "Link cũ hơn", url: "google.com" },
-//     { title: "Github Repository", url: "github.com" },
-//     { title: "Thiết kế Figma Project A", url: "figma.com" },
-//     { title: "Tài liệu ReactJS - Trang chủ", url: "react.dev" },
-//     { title: "Video hướng dẫn Youtube", url: "youtube.com" },
-// ];
-//
-// // --- MOCK DATA CHI TIẾT CHO KHO LƯU TRỮ (Repo Mode - Giữ nguyên đầy đủ) ---
-// const REPO_MEDIA_GROUPS = [
-//     {
-//         date: "Mới nhất",
-//         // Lấy 3 ảnh đầu tiên (Index 0, 1, 2)
-//         items: MOCK_PREVIEW_IMAGES.slice(0, 3)
-//     },
-//     {
-//         date: "28/12/2025",
-//         // Lấy 5 ảnh tiếp theo (Index 3 đến 7)
-//         items: MOCK_PREVIEW_IMAGES.slice(3, 8)
-//     },
-//     {
-//         date: "20/12/2025",
-//         // Lấy 2 ảnh cuối cùng (Index 8, 9)
-//         items: MOCK_PREVIEW_IMAGES.slice(8, 10)
-//     }
-// ];
-//
-// const REPO_FILE_GROUPS = [
-//     {
-//         date: "Mới nhất",
-//         items: MOCK_PREVIEW_FILES.slice(0, 1)
-//     },
-//     {
-//         date: "28/12/2025",
-//         items: MOCK_PREVIEW_FILES.slice(1, 2)
-//     },
-//     {
-//         date: "20/12/2025",
-//         items: MOCK_PREVIEW_FILES.slice(2, 5)
-//     }
-// ];
-//
-// const REPO_LINK_GROUPS = [
-//     {
-//         date: "Mới nhất",
-//         items: MOCK_PREVIEW_LINKS.slice(0, 1)
-//     },
-//     {
-//         date: "28/12/2025",
-//         items: MOCK_PREVIEW_LINKS.slice(1, 6)
-//     },
-//     {
-//         date: "20/12/2025",
-//         items: MOCK_PREVIEW_LINKS.slice(6, 8)
-//     }
-// ];
+// Import Modal Gallery (Đảm bảo đường dẫn này đúng với thư mục của bạn)
+import ImageGalleryModal from '../ChatWindow/ImageGalleryModal';
 
 export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
     const [activeTab, setActiveTab] = useState('info');
@@ -94,62 +16,87 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
     const [sections, setSections] = useState({
         media: true, files: true, links: true, security: true
     });
-    // --- XỬ LÝ DỮ LIỆU TỪ TIN NHẮN THẬT ---
 
-    // 1. Lọc danh sách ẢNH
+    // State cho Modal Gallery
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [currentGalleryImg, setCurrentGalleryImg] = useState(null);
+
+    // --- 1. XỬ LÝ ẢNH (MEDIA) ---
     const mediaList = useMemo(() => {
+        if (!Array.isArray(allMessages)) return [];
         return allMessages
-            .filter(m => m.type === 'image')
+            .filter(m => m && m.type === 'image')
             .map(m => ({
-                id: m.id || Math.random(), // Fallback id nếu tin nhắn đang gửi chưa có id
+                id: m.id || Math.random(),
                 src: m.content,
-                time: m.time || new Date().toLocaleTimeString(),
-                // Tạo đối tượng Date để gom nhóm. Nếu id là timestamp (số) thì dùng, không thì dùng thời gian hiện tại
-                dateObj: new Date(typeof m.id === 'number' ? m.id : Date.now())
+                content: m.content,
+                time: m.time || "",
+                createdAt: m.createdAt,
+                dateObj: new Date(m.id || Date.now()) // Dùng ID làm timestamp nếu không có createdAt
             }))
-            .reverse(); // Mới nhất lên đầu
+            .reverse();
     }, [allMessages]);
 
-    // 2. Lọc danh sách FILE
+    // --- 2. XỬ LÝ FILE (FIX LỖI KHÔNG TẢI ĐƯỢC) ---
     const fileList = useMemo(() => {
+        if (!Array.isArray(allMessages)) return [];
         return allMessages
-            .filter(m => m.type === 'file')
+            .filter(m => m && m.type === 'file')
             .map(m => {
-                // Content file thường là object {name, size...} hoặc string JSON
-                let content = m.content;
-                if (typeof content === 'string') {
-                    try { content = JSON.parse(content); } catch(e) {}
+                let fileName = "File không tên";
+                let fileSize = "Unknown";
+                let fileUrl = null;
+
+                let rawContent = m.content;
+
+                try {
+                    // Trường hợp 1: Content là chuỗi JSON (Lịch sử chat trả về)
+                    if (typeof rawContent === 'string') {
+                        if (rawContent.trim().startsWith('{')) {
+                            const parsed = JSON.parse(rawContent);
+                            fileName = parsed.name || fileName;
+                            fileSize = parsed.size || fileSize;
+                            // QUAN TRỌNG: ChatWindow lưu base64 trong trường 'data'
+                            fileUrl = parsed.data || parsed.url || parsed.fileUrl || null;
+                        }
+                    }
+                    // Trường hợp 2: Content đã là Object (Vừa gửi xong)
+                    else if (typeof rawContent === 'object' && rawContent !== null) {
+                        fileName = rawContent.name || fileName;
+                        fileSize = rawContent.size || fileSize;
+                        // QUAN TRỌNG: Lấy trường 'data'
+                        fileUrl = rawContent.data || rawContent.url || null;
+                    }
+                } catch (e) {
+                    console.error("Lỗi parse file info:", e);
                 }
-                // Nếu content vẫn là string (tên file) thì xử lý tạm
-                const fileName = content?.name || (typeof content === 'string' ? content : "File không tên");
 
                 return {
-                    id: m.id,
+                    id: m.id || Math.random(),
                     name: fileName,
-                    size: content?.size || "Unknown",
+                    size: fileSize,
+                    url: fileUrl, // Đây là chuỗi Base64 để tải
                     type: checkFileType(fileName),
-                    time: m.time,
-                    dateObj: new Date(typeof m.id === 'number' ? m.id : Date.now())
+                    dateObj: new Date(m.id || Date.now())
                 };
             })
             .reverse();
     }, [allMessages]);
 
-    // 3. Lọc danh sách LINK (Tìm trong tin nhắn Text)
+    // --- 3. XỬ LÝ LINK ---
     const linkList = useMemo(() => {
+        if (!Array.isArray(allMessages)) return [];
         return allMessages
-            .filter(m => m.type === 'text' && typeof m.content === 'string')
+            .filter(m => m && m.type === 'text' && typeof m.content === 'string')
             .reduce((acc, m) => {
-                // Regex tìm url đơn giản
                 const urls = m.content.match(/(https?:\/\/[^\s]+)/g);
                 if (urls) {
                     urls.forEach(url => {
                         acc.push({
-                            id: m.id,
-                            title: url, // Có thể cải tiến lấy title nếu backend hỗ trợ
+                            id: m.id || Math.random(),
+                            title: url,
                             url: url,
-                            time: m.time,
-                            dateObj: new Date(typeof m.id === 'number' ? m.id : Date.now())
+                            dateObj: new Date(m.id || Date.now())
                         });
                     });
                 }
@@ -158,12 +105,12 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
             .reverse();
     }, [allMessages]);
 
-    // --- Helper: Gom nhóm theo ngày cho phần Kho lưu trữ ---
+    // Helper Gom nhóm
     const groupItemsByDate = (items) => {
         const groups = {};
         items.forEach(item => {
-            // Format ngày: dd/mm/yyyy
-            const dateStr = item.dateObj.toLocaleDateString("vi-VN");
+            const d = item.dateObj;
+            const dateStr = !isNaN(d) ? d.toLocaleDateString("vi-VN") : "Gần đây";
             if (!groups[dateStr]) groups[dateStr] = [];
             groups[dateStr].push(item);
         });
@@ -177,56 +124,64 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
     const repoFileGroups = useMemo(() => groupItemsByDate(fileList), [fileList]);
     const repoLinkGroups = useMemo(() => groupItemsByDate(linkList), [linkList]);
 
-    const isRoom = activeChat?.type === 'room';
-    const displayName = activeChat?.name || "Cuộc trò chuyện";
-    const displayAvatar = isRoom
-        ? "https://cdn-icons-png.flaticon.com/512/166/166258.png"
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`; // Ảnh mặc định cho User
+    // --- HANDLERS ---
+
+    const handleImageClick = (imgItem) => {
+        setCurrentGalleryImg(imgItem);
+        setIsGalleryOpen(true);
+    };
+
+    // --- HÀM DOWNLOAD FILE ---
+    const handleDownloadFile = (e, fileItem) => {
+        e.stopPropagation();
+
+        if (!fileItem.url) {
+            console.log("File Item Error:", fileItem);
+            alert(`File này chưa được tải xong hoặc bị lỗi nội dung. (Tên: ${fileItem.name})`);
+            return;
+        }
+
+        const link = document.createElement("a");
+        link.href = fileItem.url; // fileItem.url chứa Base64 data
+        link.download = fileItem.name;
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleOpenLink = (url) => {
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+    };
+
     const toggleSection = (key) => {
         setSections(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const openRepoTab = (subTab) => {
-        setActiveRepoTab(subTab);
-        setActiveTab('repo');
-    };
+    const isRoom = activeChat?.type === 'room';
+    const displayName = activeChat?.name || "Cuộc trò chuyện";
+    const displayAvatar = isRoom
+        ? "https://cdn-icons-png.flaticon.com/512/166/166258.png"
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
 
     // ================== RENDER INFO MODE ==================
     const renderInfoMode = () => (
         <>
             <div className="info-profile">
-                <img
-                    src={displayAvatar}
-                    alt="avatar"
-                    className="info-avatar-large"
-                />
+                <img src={displayAvatar} alt="avatar" className="info-avatar-large" />
                 <div className="info-name-row">
                     <span>{displayName}</span>
                     <Edit2 size={16} color="#7589a3" style={{ cursor: 'pointer' }} />
                 </div>
-
                 <div className="info-actions">
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Bell size={20} /></div>
-                        <span>Tắt thông báo</span>
-                    </div>
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Pin size={20} /></div>
-                        <span>Ghim hội thoại</span>
-                    </div>
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Users size={20} /></div>
-                        <span>Tạo nhóm</span>
-                    </div>
-                    <div className="action-item">
-                        <div className="action-icon-circle"><Search size={20} /></div>
-                        <span>Tìm tin nhắn</span>
-                    </div>
+                    <div className="action-item"><div className="action-icon-circle"><Bell size={20} /></div><span>Tắt thông báo</span></div>
+                    <div className="action-item"><div className="action-icon-circle"><Pin size={20} /></div><span>Ghim hội thoại</span></div>
+                    <div className="action-item"><div className="action-icon-circle"><Users size={20} /></div><span>Tạo nhóm</span></div>
+                    <div className="action-item"><div className="action-icon-circle"><Search size={20} /></div><span>Tìm tin nhắn</span></div>
                 </div>
             </div>
 
-            {/* Mục 1: Ảnh / Video (Preview) - HIỂN THỊ TỐI ĐA 8 ẢNH */}
-            {/* Mục 1: Ảnh / Video */}
+            {/* Media */}
             <div className="info-section">
                 <div className="section-header" onClick={() => toggleSection('media')}>
                     <span>Ảnh / Video ({mediaList.length})</span>
@@ -237,19 +192,17 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                         <div className="media-preview-grid">
                             {mediaList.length === 0 ? <p className="empty-text">Chưa có ảnh</p> :
                                 mediaList.slice(0, 8).map((item, i) => (
-                                    <div key={i} className="media-preview-item">
+                                    <div key={i} className="media-preview-item" onClick={() => handleImageClick(item)}>
                                         <img src={item.src} alt="media" />
                                     </div>
                                 ))}
                         </div>
-                        {mediaList.length > 0 &&
-                            <button className="btn-view-all" onClick={() => openRepoTab('media')}>Xem tất cả</button>
-                        }
+                        {mediaList.length > 0 && <button className="btn-view-all" onClick={() => { setActiveRepoTab('media'); setActiveTab('repo'); }}>Xem tất cả</button>}
                     </>
                 )}
             </div>
 
-            {/* Mục 2: File */}
+            {/* Files */}
             <div className="info-section">
                 <div className="section-header" onClick={() => toggleSection('files')}>
                     <span>File đã gửi ({fileList.length})</span>
@@ -259,7 +212,13 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                     <div className="file-preview-list">
                         {fileList.length === 0 ? <p className="empty-text">Chưa có file</p> :
                             fileList.slice(0, 3).map((file, i) => (
-                                <div key={i} className="link-item">
+                                <div
+                                    key={i}
+                                    className="link-item hover-effect"
+                                    onClick={(e) => handleDownloadFile(e, file)}
+                                    title="Nhấn để tải xuống"
+                                    style={{cursor: 'pointer'}}
+                                >
                                     <FileIconType type={file.type} />
                                     <div className="item-details">
                                         <div className="item-name">{file.name}</div>
@@ -267,14 +226,12 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                                     </div>
                                 </div>
                             ))}
-                        {fileList.length > 0 &&
-                            <button className="btn-view-all" onClick={() => openRepoTab('file')}>Xem tất cả</button>
-                        }
+                        {fileList.length > 0 && <button className="btn-view-all" onClick={() => { setActiveRepoTab('file'); setActiveTab('repo'); }}>Xem tất cả</button>}
                     </div>
                 )}
             </div>
 
-            {/* Mục 3: Link */}
+            {/* Links */}
             <div className="info-section">
                 <div className="section-header" onClick={() => toggleSection('links')}>
                     <span>Link đã gửi ({linkList.length})</span>
@@ -284,7 +241,7 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                     <div className="file-preview-list">
                         {linkList.length === 0 ? <p className="empty-text">Chưa có link</p> :
                             linkList.slice(0, 3).map((link, i) => (
-                                <div key={i} className="link-item">
+                                <div key={i} className="link-item hover-effect" onClick={() => handleOpenLink(link.url)}>
                                     <div className="file-icon link"><LinkIcon size={18}/></div>
                                     <div className="item-details">
                                         <div className="item-name">{link.title}</div>
@@ -292,14 +249,12 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                                     </div>
                                 </div>
                             ))}
-                        {linkList.length > 0 &&
-                            <button className="btn-view-all" onClick={() => openRepoTab('link')}>Xem tất cả</button>
-                        }
+                        {linkList.length > 0 && <button className="btn-view-all" onClick={() => { setActiveRepoTab('link'); setActiveTab('repo'); }}>Xem tất cả</button>}
                     </div>
                 )}
             </div>
 
-            {/* Mục 4: Bảo mật */}
+            {/* Security */}
             <div className="info-section">
                 <div className="section-header" onClick={() => toggleSection('security')}>
                     <span>Thiết lập bảo mật</span>
@@ -307,30 +262,17 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                 </div>
                 {sections.security && (
                     <div className="setting-list">
-                        <div className="setting-item">
-                            <Clock size={20} />
-                            <span style={{ flex: 1 }}>Tin nhắn tự xóa</span>
-                            <span style={{ fontSize: '13px', color: '#7589a3' }}>Tắt</span>
-                        </div>
-                        <div className="setting-item">
-                            <EyeOff size={20} />
-                            <span>Ẩn trò chuyện</span>
-                        </div>
-                        <div className="setting-item">
-                            <AlertTriangle size={20} />
-                            <span>Báo xấu</span>
-                        </div>
-                        <div className="setting-item delete">
-                            <Trash2 size={20} />
-                            <span>Xóa lịch sử trò chuyện</span>
-                        </div>
+                        <div className="setting-item"><Clock size={20} /><span>Tin nhắn tự xóa</span></div>
+                        <div className="setting-item"><EyeOff size={20} /><span>Ẩn trò chuyện</span></div>
+                        <div className="setting-item"><AlertTriangle size={20} /><span>Báo xấu</span></div>
+                        <div className="setting-item delete"><Trash2 size={20} /><span>Xóa lịch sử</span></div>
                     </div>
                 )}
             </div>
         </>
     );
 
-    // 2. Màn hình KHO LƯU TRỮ (Repo Mode)
+    // ================== RENDER REPO MODE ==================
     const renderRepoMode = () => (
         <div className="repo-container">
             <div className="panel-header">
@@ -339,7 +281,6 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                 </div>
                 <span>Kho lưu trữ</span>
             </div>
-
             <div className="repo-tabs">
                 <div className={`repo-tab ${activeRepoTab === 'media' ? 'active' : ''}`} onClick={() => setActiveRepoTab('media')}>Ảnh/Video</div>
                 <div className={`repo-tab ${activeRepoTab === 'file' ? 'active' : ''}`} onClick={() => setActiveRepoTab('file')}>File</div>
@@ -347,56 +288,56 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
             </div>
 
             <div className="panel-body repo-list-container">
-                {activeRepoTab === 'media' && (
-                    repoMediaGroups.length === 0 ? <div className="empty-state">Không có hình ảnh</div> :
-                        repoMediaGroups.map((group, idx) => (
-                            <div key={idx} className="repo-group">
-                                <div className="date-group-label">{group.date}</div>
-                                <div className="repo-media-grid">
-                                    {group.items.map((item, i) => (
-                                        <div key={i} className="media-preview-item">
-                                            <img src={item.src} alt="repo-media" loading="lazy" />
-                                        </div>
-                                    ))}
+                {activeRepoTab === 'media' && repoMediaGroups.map((group, idx) => (
+                    <div key={idx} className="repo-group">
+                        <div className="date-group-label">{group.date}</div>
+                        <div className="repo-media-grid">
+                            {group.items.map((item, i) => (
+                                <div key={i} className="media-preview-item" onClick={() => handleImageClick(item)}>
+                                    <img src={item.src} alt="media" loading="lazy" />
                                 </div>
-                            </div>
-                        )))}
+                            ))}
+                        </div>
+                    </div>
+                ))}
 
-                {activeRepoTab === 'file' && (
-                    repoFileGroups.length === 0 ? <div className="empty-state">Không có file</div> :
-                        repoFileGroups.map((group, idx) => (
-                            <div key={idx} className="repo-group">
-                                <div className="date-group-label">{group.date}</div>
-                                {group.items.map((file, i) => (
-                                    <div key={i} className="link-item" style={{marginBottom: 10}}>
-                                        <FileIconType type={file.type} />
-                                        <div className="item-details">
-                                            <div className="item-name">{file.name}</div>
-                                            <div className="item-meta">{file.size}</div>
-                                        </div>
-                                        <MoreHorizontal size={16} color="#7589a3" />
-                                    </div>
-                                ))}
+                {activeRepoTab === 'file' && repoFileGroups.map((group, idx) => (
+                    <div key={idx} className="repo-group">
+                        <div className="date-group-label">{group.date}</div>
+                        {group.items.map((file, i) => (
+                            <div
+                                key={i}
+                                className="link-item hover-effect"
+                                onClick={(e) => handleDownloadFile(e, file)}
+                                style={{cursor: 'pointer'}}
+                                title="Nhấn để tải"
+                            >
+                                <FileIconType type={file.type} />
+                                <div className="item-details">
+                                    <div className="item-name">{file.name}</div>
+                                    <div className="item-meta">{file.size}</div>
+                                </div>
+                                <MoreHorizontal size={16} color="#7589a3" />
                             </div>
-                        )))}
+                        ))}
+                    </div>
+                ))}
 
-                {activeRepoTab === 'link' && (
-                    repoLinkGroups.length === 0 ? <div className="empty-state">Không có link</div> :
-                        repoLinkGroups.map((group, idx) => (
-                            <div key={idx} className="repo-group">
-                                <div className="date-group-label">{group.date}</div>
-                                {group.items.map((link, i) => (
-                                    <div key={i} className="link-item" style={{marginBottom: 12}}>
-                                        <div className="file-icon link"><LinkIcon size={20}/></div>
-                                        <div className="item-details">
-                                            <div className="item-name">{link.title}</div>
-                                            <div className="item-meta" style={{color: '#0068ff'}}>{link.url}</div>
-                                        </div>
-                                        <MoreHorizontal size={16} color="#7589a3" />
-                                    </div>
-                                ))}
+                {activeRepoTab === 'link' && repoLinkGroups.map((group, idx) => (
+                    <div key={idx} className="repo-group">
+                        <div className="date-group-label">{group.date}</div>
+                        {group.items.map((link, i) => (
+                            <div key={i} className="link-item hover-effect" onClick={() => handleOpenLink(link.url)}>
+                                <div className="file-icon link"><LinkIcon size={20}/></div>
+                                <div className="item-details">
+                                    <div className="item-name">{link.title}</div>
+                                    <div className="item-meta link-color">{link.url}</div>
+                                </div>
+                                <MoreHorizontal size={16} color="#7589a3" />
                             </div>
-                        )))}
+                        ))}
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -411,11 +352,20 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
             ) : (
                 renderRepoMode()
             )}
+
+            {isGalleryOpen && (
+                <ImageGalleryModal
+                    isOpen={isGalleryOpen}
+                    onClose={() => setIsGalleryOpen(false)}
+                    currentImage={currentGalleryImg}
+                    allMessages={allMessages || []}
+                />
+            )}
         </aside>
     );
-};
+}
 
-// --- Helper Components ---
+// Helpers
 const checkFileType = (fileName) => {
     if (!fileName) return 'file';
     const ext = fileName.split('.').pop().toLowerCase();
@@ -423,14 +373,14 @@ const checkFileType = (fileName) => {
     if (['xls', 'xlsx'].includes(ext)) return 'excel';
     if (['pdf'].includes(ext)) return 'pdf';
     if (['zip', 'rar'].includes(ext)) return 'zip';
-    return 'file';
+    return 'file';s
 };
 
 const FileIconType = ({ type }) => {
-    if (type === 'folder') return <div className="file-icon folder"><Folder size={18} fill="#FFC107" stroke="#FFC107"/></div>
-    if (type === 'word') return <div className="file-icon word" style={{backgroundColor: '#e6f2ff', color: '#0078d4'}}>W</div>
-    if (type === 'zip') return <div className="file-icon" style={{backgroundColor: '#f0f0f0'}}><FileCode size={18}/></div>
-    if (type === 'excel') return <div className="file-icon excel" style={{backgroundColor: '#e6fffa', color: '#28a745'}}>X</div>
-    if (type === 'pdf') return <div className="file-icon pdf" style={{backgroundColor: '#ffe6e6', color: '#dc3545'}}>PDF</div>
-    return <div className="file-icon"><FileText size={18}/></div>
+    if (type === 'folder') return <div className="file-icon folder"><Folder size={18} fill="#FFC107" stroke="#FFC107"/></div>;
+    if (type === 'word') return <div className="file-icon word" style={{backgroundColor: '#e6f2ff', color: '#0078d4'}}>W</div>;
+    if (type === 'zip') return <div className="file-icon" style={{backgroundColor: '#f0f0f0'}}><FileCode size={18}/></div>;
+    if (type === 'excel') return <div className="file-icon excel" style={{backgroundColor: '#e6fffa', color: '#28a745'}}>X</div>;
+    if (type === 'pdf') return <div className="file-icon pdf" style={{backgroundColor: '#ffe6e6', color: '#dc3545'}}>PDF</div>;
+    return <div className="file-icon"><FileText size={18}/></div>;
 };
