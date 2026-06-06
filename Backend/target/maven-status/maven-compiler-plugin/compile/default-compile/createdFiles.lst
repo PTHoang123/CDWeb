@@ -1,0 +1,6 @@
+com/yourproject/chat/ChatApplication.class
+com/yourproject/chat/dto/ChatRequest.class
+com/yourproject/chat/handler/ChatWebSocketHandler.class
+com/yourproject/chat/config/WebSocketConfig.class
+com/yourproject/chat/dto/RequestData.class
+com/yourproject/chat/dto/ChatResponse.class
