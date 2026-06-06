@@ -1,0 +1,190 @@
+.sidebar-nav {
+    width: 64px;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+}
+
+.user-profile-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-bottom: 10px;
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.nav-menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nav-item {
+    width: 64px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.nav-item.active {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #ffffff;
+}
+
+.nav-group-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+/* --- Sidebar & Dropdown --- */
+.sidebar-nav {
+    width: 64px;
+    height: 100vh;
+    background-color: #0068ff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    position: relative;
+    z-index: 10;
+}
+
+.sidebar-dropdown {
+    position: absolute;
+    left: 70px;
+    width: 220px;
+    background-color: #1f2021;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); /* Shadow đậm hơn chút */
+    color: #e4e6eb;
+    padding: 6px 0;
+    z-index: 999;
+    font-size: 14px;
+    border: 1px solid #2f3031; /* Viền mỏng */
+}
+
+.profile-menu { top: 20px; }
+.settings-menu { bottom: 20px; }
+
+.dropdown-header { padding: 10px 15px; font-weight: 600; font-size: 16px; }
+.dropdown-divider { height: 1px; background: #3e4042; margin: 4px 0; }
+.dropdown-item {
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+}
+.dropdown-item:hover { background-color: #3a3b3c; }
+.logout { color: #f35353; }
+
+.profile-menu {
+    top: 20px;
+}
+
+/* Menu Settings nằm ở dưới (căn theo đáy) */
+.settings-menu {
+    bottom: 20px; /* Cách đáy 20px */
+}
+
+/* --- ITEM STYLING (Giống Zalo) --- */
+.dropdown-item {
+    position: relative; /* Để submenu con định vị theo item này */
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    color: #dcdcdc;
+    transition: background-color 0.1s;
+}
+
+.dropdown-item:hover {
+    background-color: #3a3b3c;
+    color: #fff;
+}
+
+.item-label { display: flex; align-items: center; gap: 10px; }
+.dropdown-divider { height: 1px; background: #3e4042; margin: 4px 0; }
+.logout { color: #ff4d4f; }
+.logout:hover { background-color: rgba(255, 77, 79, 0.1); }
+
+/* --- SUB DROPDOWN (MENU CON) --- */
+.sub-dropdown {
+    position: absolute;
+    left: 100%; /* Đẩy sang phải 100% so với cha */
+    bottom: -50px; /* Căn chỉnh vị trí dọc tương đối */
+    width: 200px;
+    background-color: #1f2021;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    border: 1px solid #2f3031;
+    padding: 6px 0;
+    margin-left: 10px; /* Khoảng cách giữa 2 menu */
+    z-index: 1000;
+}
+
+/* Điều chỉnh vị trí cụ thể cho từng menu để khớp ảnh */
+/* Vì menu chính đang ở bottom: 20px, nên submenu cần tính toán bottom hoặc top */
+/* Cách đơn giản nhất: dùng top:0 hoặc bottom tương ứng */
+
+.settings-menu .sub-dropdown {
+    top: -10px; /* Mặc định hiển thị ngang hàng phía trên một chút */
+    bottom: auto;
+}
+
+/* Riêng Support nằm thấp quá thì đẩy menu con lên trên */
+.support-pos {
+    bottom: 0 !important;
+    top: auto !important;
+}
+
+/* MENU CẤP 3 (Mục Khác) */
+.sub-dropdown.level-3 {
+    top: -50px; /* Đẩy lên chút cho đẹp */
+    left: 100%;
+    margin-left: 2px;
+}
+
+/* Mũi tên chỉ mục */
+
+.arrow-icon {
+    color: #888;
+    opacity: 0.6;
+}
+.dropdown-item:hover .arrow-icon { opacity: 1; }
+
+/* --- ANIMATION NHẸ --- */
+.sidebar-dropdown {
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}

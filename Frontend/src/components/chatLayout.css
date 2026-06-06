@@ -1,0 +1,52 @@
+.chatLayout {
+    height: 100%;
+    display: grid;
+    /* Mặc định 4 cột: Nav | List | Chat | Info */
+    grid-template-columns: 64px 320px 1fr 320px;
+    background: white;
+    color: #1a1a1a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: grid-template-columns 0.3s ease; /* Thêm hiệu ứng trượt mượt mà nếu thích */
+    overflow: hidden;
+}
+
+/* Khi ẩn info, đổi thành 3 cột: Nav | List | Chat (chiếm hết phần còn lại) */
+.chatLayout--full {
+    grid-template-columns: 64px 320px 1fr;
+}
+
+.chatLayout__nav {
+    height: 100%;
+    background: #0068ff;
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.chatLayout__sidebar {
+    background-color: #ffffff;
+    border-right: 1px solid #dbdee1;
+    color: #333;
+}
+
+.chatLayout__main {
+    background-color: #f4f5f7;
+    color: #333;
+    /* Đảm bảo nội dung bên trong (ChatWindow) fill hết chiều rộng */
+    min-width: 0;
+}
+
+.chatLayout__info {
+    background-color: #ffffff;
+    border-left: 1px solid #dbdee1;
+    color: #333;
+}
+
+/* Responsive: Ẩn cột giữa khi màn hình nhỏ */
+@media (max-width: 1024px) {
+    .chatLayout {
+        grid-template-columns: 64px 1fr;
+    }
+
+    .chatLayout__sidebar {
+        display: none;
+    }
+}

@@ -1,0 +1,218 @@
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+
+    animation: fadeInOverlay 0.4s ease-out forwards;
+}
+
+.modal-container {
+    width: 400px;
+    background: #242526; /* Màu nền Dark của Zalo */
+    border-radius: 4px;
+    color: #e4e6eb;
+    overflow: hidden;
+
+    animation: zoomInModal 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes zoomInModal {
+    from {
+        opacity: 0;
+        transform: scale(0.2); /* Bắt đầu hơi nhỏ */
+    }
+    to {
+        opacity: 1;
+        transform: scale(1); /* Phóng lên kích thước chuẩn */
+    }
+}
+
+.modal-header {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #3e4042;
+    font-weight: 500;
+}
+
+.header-left {
+    display: flex;
+    align-items: center; /* Căn giữa theo chiều dọc */
+    gap: 10px;           /* Khoảng cách giữa mũi tên và chữ */
+    cursor: pointer;
+}
+
+.header-left span {
+    line-height: 1;      /* Đảm bảo dòng chữ không tạo khoảng trống thừa */
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Khung chứa ảnh bìa cố định */
+.cover-placeholder {
+    height: 150px; /* Chiều cao cố định giống Zalo */
+    width: 100%;
+    overflow: hidden;
+    background: #3a3b3c;
+    position: relative;
+}
+
+/* Định dạng ảnh bên trong khung */
+.cover-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Quan trọng: Giúp ảnh không bị méo và lấp đầy khung */
+    display: block;
+}
+
+/* Điều chỉnh lại phần Avatar lấn lên cho khớp với chiều cao mới */
+.avatar-overlap {
+    padding: 0 16px;
+    margin-top: -40px;
+    display: flex;
+    align-items: flex-end;
+    gap: 15px;
+    position: relative;
+    z-index: 2; /* Đảm bảo avatar nằm trên ảnh bìa */
+}
+
+.avatar-wrapper {
+    position: relative;
+    width: 80px; height: 80px;
+}
+
+.avatar-wrapper img {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    border: 3px solid #242526;
+    object-fit: cover;
+}
+
+.camera-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: #3a3b3c;
+    border-radius: 50%;
+
+    /* Cố định kích thước để đảm bảo hình tròn */
+    width: 24px;
+    height: 24px;
+
+    /* Căn giữa icon bên trong */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0; /* Xóa padding để không làm méo hình tròn */
+    border: 1.5px solid #242526;
+    cursor: pointer;
+}
+
+.name-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+}
+
+.name-display h3 { font-size: 18px; margin: 0; }
+
+.info-body {
+    padding: 0 16px;
+    border-top: 8px solid #18191a; /* Khoảng cách xám đậm */
+    padding-top: 15px;
+}
+
+.title-group { font-weight: 600; margin-bottom: 15px; }
+
+.info-row {
+    display: flex;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.label { width: 100px; color: #b0b3b8; }
+.value { color: #e4e6eb; }
+
+.note-text {
+    font-size: 12px;
+    color: #8a8d91;
+    margin-top: 15px;
+    line-height: 1.4;
+}
+
+.footer-action {
+    padding: 20px 16px;
+    border-top: 1px solid #3e4042;
+}
+
+.btn-update-main {
+    width: 100%;
+    background: #3a3b3c;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+/* Edit Mode CSS */
+.profile-edit { padding: 16px; }
+.edit-group { margin-bottom: 20px; }
+.edit-group label, .label-text { display: block; color: #b0b3b8; font-size: 13px; margin-bottom: 8px; }
+
+.edit-group input[type="text"] {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #3e4042;
+    color: #fff;
+    padding: 8px 0;
+    outline: none;
+}
+
+.radio-flex { display: flex; gap: 20px; }
+.dob-grid { display: flex; gap: 10px; }
+.dob-grid select {
+    flex: 1;
+    background: #3a3b3c;
+    color: #fff;
+    border: 1px solid #3e4042;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.edit-footer-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 30px;
+}
+/* --- Hiệu ứng chuyển cảnh mượt mà --- */
+.modal-content-scroll {
+    position: relative;
+    min-height: 400px; /* Giữ khung không bị nhảy kích thước */
+}
+
+/* Thêm hiệu ứng hover cho các nút bấm để bớt "khựng" cảm giác */
+.btn-update-main, .btn-huy, .btn-capnhat {
+    transition: all 0.5s ease;
+}
+
+.btn-update-main:active, .btn-capnhat:active {
+    transform: scale(0.98); /* Nhấn vào có cảm giác lún xuống */
+}
+
+.btn-huy { background: #3a3b3c; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; }
+.btn-capnhat { background: #0068ff; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; }
+

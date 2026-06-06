@@ -1,0 +1,193 @@
+/* Login.css */
+.login-body-wrapper {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    box-sizing: border-box;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.login-container {
+    width: 360px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.app-title {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: #4b3fa7;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 6px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    border-color: #667eea;
+}
+
+.login-btn {
+
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.login-btn:hover {
+    opacity: 0.95;
+}
+
+.extra {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    font-size: 13px;
+}
+
+.extra a {
+    text-decoration: none;
+    color: #667eea;
+}
+
+.divider {
+    text-align: center;
+    margin: 22px 0 16px;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.social-login {
+    display: flex;
+    gap: 12px;
+}
+
+.social-btn {
+    flex: 1;
+    padding: 10px 0;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.social-btn:hover {
+    background: #f5f5f5;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 13px;
+    color: #555;
+}
+
+.footer a {
+    color: #764ba2;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* Thêm vào cuối file loginStyle.css */
+
+.mascot-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0;
+    height: 120px; /* Chiều cao cố định để giao diện không bị giật khi đổi ảnh */
+    transition: all 0.3s ease;
+}
+
+.mascot-img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* --- Style cho nút Create Account (Nút phụ) --- */
+.btn-outline {
+    background: transparent;
+    border: 2px solid #667eea; /* Màu tím chủ đạo của App */
+    color: #667eea;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+/* Hiệu ứng khi di chuột vào: Tô màu nền giống nút Login */
+.btn-outline:hover {
+    background: #667eea;
+    color: #ffffff;
+    border-color: #667eea;
+    transform: translateY(-1px); /* Nhảy nhẹ lên 1 chút */
+    box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25);
+}
+
+/* Điều chỉnh lại layout container chứa nút này để căn giữa đẹp hơn */
+.top-action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.ws-status {
+    font-size: 12px;
+    color: #888;
+    background: #f0f0f0;
+    padding: 4px 8px;
+    border-radius: 6px;
+}

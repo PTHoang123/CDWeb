@@ -1,0 +1,259 @@
+/* --- CONTAINER CHÍNH (CỐ ĐỊNH KÍCH THƯỚC) --- */
+.conv-list {
+    width: 320px;            /* Chiều rộng cố định giống Zalo */
+    height: 100vh;           /* Chiều cao full màn hình */
+    display: flex;           /* Xếp các phần tử con theo chiều dọc */
+    flex-direction: column;
+    background-color: #fff;
+    border-right: 1px solid #e0e0e0; /* Đường kẻ ngăn cách với khung chat */
+}
+
+/* --- PHẦN 1: HEADER & TABS (CỐ ĐỊNH - KHÔNG CUỘN) --- */
+.conv-header {
+    padding: 16px 16px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0; /* QUAN TRỌNG: Ngăn không cho header bị co lại */
+    background-color: #fff;
+}
+
+.conv-tabs {
+    display: flex;
+    padding: 12px 16px 0;
+    border-bottom: 1px solid #e0e0e0;
+    gap: 24px;
+    flex-shrink: 0; /* QUAN TRỌNG: Ngăn tab bị co lại */
+    background-color: #fff;
+}
+
+/* --- PHẦN 2: DANH SÁCH CUỘN (SCROLLABLE AREA) --- */
+.conv-items-scroll {
+    flex-grow: 1;       /* Chiếm toàn bộ khoảng trống còn lại */
+    overflow-y: auto;   /* Chỉ hiện thanh cuộn ở khu vực này */
+    overflow-x: hidden;
+}
+
+/* Tùy chỉnh thanh cuộn cho đẹp (Chrome/Edge/Safari) */
+.conv-items-scroll::-webkit-scrollbar {
+    width: 5px;
+}
+.conv-items-scroll::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+}
+.conv-items-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.conv-search-box {
+    flex: 1;
+    background-color: #eaedf0;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.conv-search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    font-size: 14px;
+    color: #333;
+}
+
+.conv-icon-btn {
+    padding: 6px;
+    color: #475467;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.conv-icon-btn:hover { background-color: #f1f1f1; }
+
+.conv-tab {
+    font-size: 14px;
+    font-weight: 600;
+    color: #7589a3;
+    padding-bottom: 12px;
+    cursor: pointer;
+    position: relative;
+}
+
+.conv-tab.active {
+    color: #0068ff;
+}
+
+.conv-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #0068ff;
+}
+
+.conv-item {
+    display: flex;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.conv-item:hover { background-color: #f1f1f1; }
+.conv-item.active { background-color: #e5efff; }
+
+.conv-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: 12px;
+    object-fit: cover;
+    border: 1px solid #eee;
+}
+
+.conv-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.conv-row-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.conv-name { font-weight: 600; font-size: 15px; color: #333; }
+.conv-time { font-size: 12px; color: #7589a3; }
+
+.conv-message {
+    font-size: 13px;
+    color: #7589a3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modal-body-custom {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.search-row {
+    display: flex;
+    gap: 10px;
+}
+
+.modal-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    outline: none;
+}
+
+.modal-input:focus {
+    border-color: #0068ff;
+}
+
+.btn-primary {
+    background-color: #0068ff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-primary:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.btn-outline {
+    background-color: #e5efff;
+    color: #0068ff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.result-list {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.user-row {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #f5f5f5;
+    transition: background 0.2s;
+}
+
+.user-row:last-child {
+    border-bottom: none;
+}
+
+.checkable-list .user-row:hover {
+    background-color: #f9f9f9;
+    cursor: pointer;
+}
+
+.avatar-small {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-name {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.user-phone {
+    font-size: 12px;
+    color: #888;
+}
+
+.empty-state, .loading-text {
+    text-align: center;
+    color: #999;
+    padding: 20px 0;
+    font-size: 14px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.full-width {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+}

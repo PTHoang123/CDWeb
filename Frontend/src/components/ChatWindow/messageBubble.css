@@ -1,0 +1,164 @@
+.msg {
+  display: flex;
+}
+
+.msg--left {
+  justify-content: flex-start;
+}
+
+.msg--right {
+  justify-content: flex-end;
+}
+
+.msg__row {
+  max-width: min(640px, 78%);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+.msg--right .msg__row {
+  grid-template-columns: 1fr;
+}
+
+.msg__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.msg__author {
+  margin: 0 0 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.msg__bubble {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25);
+}
+
+.msg__bubble--left {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.msg__bubble--right {
+  background: rgba(74, 158, 255, 0.35);
+  border-color: rgba(74, 158, 255, 0.45);
+}
+
+.msg__text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.msg__time {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.msg--right .msg__time {
+  text-align: right;
+}
+
+.msg__link {
+  color: inherit; /* Giữ màu chữ hiện tại hoặc đổi màu khác */
+  text-decoration: underline;
+  word-break: break-all; /* Xuống dòng nếu link quá dài */
+  font-weight: 500;
+}
+
+/* Nếu bubble bên phải màu xanh đậm, link nên có màu sáng */
+.msg--right .msg__link {
+  color: #0068ff; /* Màu xanh nhạt */
+}
+
+/* Nếu bubble bên trái màu xám/trắng, link nên có màu xanh đậm */
+.msg--left .msg__link {
+  color: #0068ff; /* Màu xanh dương */
+}
+
+/* Thêm vào messageBubble.css */
+
+.msg__file-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+  min-width: 200px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.msg__file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msg__file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.msg__file-name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  color: #fff;
+}
+
+.msg__file-size {
+  font-size: 11px;
+  color: #ddd;
+}
+
+.msg__file-download {
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.msg__file-download:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* --- Thêm mới Class này --- */
+.msg__stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Ngăn vỡ layout flex */
+}
+
+/* Căn lề phải cho tin nhắn của mình */
+.msg--right .msg__stack {
+  align-items: flex-end;
+}
+
+/* --- Chỉnh sửa lại Class .msg__author có sẵn --- */
+.msg__author {
+  margin: 0 0 4px; /* Khoảng cách với bong bóng chat */
+  font-size: 12px;
+  font-weight: 500;
+  color: #65676b; /* Màu xám đậm để dễ nhìn trên nền trắng */
+  margin-left: 2px;
+  opacity: 1; /* Bỏ opacity mờ cũ nếu cần rõ hơn */
+}

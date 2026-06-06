@@ -1,0 +1,367 @@
+/* --- Header (Cố định) --- */
+.chatWindow__header {
+  height: 64px;
+  padding: 0 16px;
+  border-bottom: 1px solid #d6dbe1;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Đẩy 2 phần ra 2 đầu */
+  color: #081c36;
+  flex-shrink: 0;
+}
+
+/* Phần thông tin tên (Bên trái) */
+.chatWindow__header-info {
+  display: flex;
+  flex-direction: column;
+}
+.chatWindow__title {
+  font-weight: 600;
+  font-size: 16px;
+}
+.chatWindow__subtitle {
+  font-size: 12px;
+  color: #7589a3;
+  margin-top: 2px;
+}
+
+/* Phần nút bấm (Bên phải) */
+.chatWindow__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #7589a3;
+  transition: 0.2s;
+}
+
+.header-icon:hover {
+  background-color: #dfe2e7;
+  color: #081c36;
+}
+
+/* --- Các phần khác giữ nguyên --- */
+.chatWindow {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #f5f6f7;
+  position: relative;
+}
+
+/* Copy lại các phần cũ để đảm bảo không bị mất */
+.chatWindow__body {
+  padding: 18px 16px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: #e2e5e9;
+}
+.chatWindow__body::-webkit-scrollbar { width: 6px; }
+.chatWindow__body::-webkit-scrollbar-thumb { background-color: #cdd0d5; border-radius: 3px; }
+.chatWindow__body::-webkit-scrollbar-track { background-color: transparent; }
+
+.chatWindow__footer {
+  background: #ffffff;
+  border-top: 1px solid #d6dbe1;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.chat-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px 4px 10px;
+  gap: 4px;
+}
+
+.toolbar-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #7589a3;
+  transition: all 0.2s;
+}
+
+.toolbar-icon:hover {
+  background-color: #dfe2e7;
+  color: #081c36;
+}
+
+.chatWindow__composer {
+  display: flex;
+  align-items: center;
+  padding: 0 10px 10px 10px;
+  position: relative;
+}
+
+.chatWindow__input {
+  flex: 1;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: #081c36;
+  font-size: 15px;
+  outline: none;
+  padding-right: 80px;
+  font-family: inherit;
+}
+.chatWindow__input::placeholder { color: #7589a3; }
+
+.chat-input-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 5px;
+}
+
+.action-icon-small {
+  cursor: pointer;
+  color: #7589a3;
+  display: flex;
+  align-items: center;
+  transition: 0.2s;
+}
+.action-icon-small:hover { color: #081c36; }
+
+.action-icon-large {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  transition: 0.2s;
+}
+.action-icon-large:hover { background-color: #dfe2e7; }
+.chatWindow__send { display: none; }
+
+.chatWindow {
+  position: relative; /* Để popup absolute neo theo window này */
+}
+
+.chat-popups {
+  position: absolute;
+  bottom: 110px; /* Cách đáy khoảng bằng chiều cao footer */
+  left: 10px;
+  z-index: 100;
+}
+
+.popup-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border: 1px solid #d6dbe1;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* 1. Emoji Picker Custom */
+.emoji-area {
+  width: 320px;
+}
+
+/* 2. Sticker Picker Custom */
+.sticker-area {
+  width: 320px;
+  height: 300px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.sticker-grid img {
+  width: 100%;
+  height: auto;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: transform 0.2s;
+}
+
+.sticker-grid img:hover {
+  transform: scale(1.1);
+}
+
+.sticker-placeholder {
+  height: 80px;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #888;
+  border-radius: 4px;
+}
+
+/* 3. Attach Menu (File/Folder) */
+.attach-menu {
+  position: absolute;
+  bottom: -40px; /* Chỉnh lại vị trí cho khớp với icon kẹp giấy */
+  left: 80px;    /* Đẩy sang phải để gần icon kẹp giấy */
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 5px 0;
+}
+
+.attach-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #081c36;
+  transition: background 0.2s;
+}
+
+.attach-item:hover {
+  background-color: #f5f6f7;
+}
+
+.blue-icon { color: #0068ff; }
+.yellow-icon { color: #f5a623; }
+
+/* Trạng thái Active cho các icon toolbar */
+.toolbar-icon.active, .action-icon-small.active {
+  color: #0068ff;
+  background-color: #e5f0ff;
+}
+
+/* Hiển thị Sticker trong chat body */
+.sticker-img {
+  width: 120px;
+  height: auto;
+}
+
+.message-row.right {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+  padding: 0 16px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Message Layout Styles (Zalo Style) --- */
+
+/* 1. Wrapper chung cho 1 dòng tin nhắn */
+.message-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  max-width: 70%;
+  position: relative;
+}
+
+/* Căn trái/phải */
+.message-group.right {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.message-group.left {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+/* 2. Phần chứa nội dung chính (Ảnh, Sticker, File Box) */
+.msg-content-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Style cho Sticker */
+.sticker-img {
+  width: 130px;
+  height: auto;
+  transition: transform 0.2s;
+}
+.sticker-img:hover {
+  transform: scale(1.05);
+}
+
+/* Style cho Ảnh gửi lên */
+.msg-image-display {
+  max-width: 250px;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Style cho Khối File & Folder */
+.msg-file-box {
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #d6dbe1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+}
+.file-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #081c36;
+  word-break: break-word;
+}
+.file-meta {
+  font-size: 11px;
+  color: #7589a3;
+  margin-top: 2px;
+}
+
+/* 3. Thời gian nhỏ bên dưới (Zalo Style) */
+.msg-time-mini {
+  font-size: 11px;
+  color: #7589a3; /* Màu xám nhạt */
+  margin-top: 4px; /* Cách nội dung một chút */
+  font-weight: 500;
+  padding: 0 2px;
+
+  /* Căn chỉnh thời gian */
+  align-self: flex-end; /* Luôn nằm góc phải của khối nội dung */
+}
+
+/* Riêng tin nhắn bên trái thì thời gian nằm bên trái hoặc vẫn bên phải tuỳ ý thích.
+   Zalo thường để thời gian lệch phải so với nội dung tin nhắn. */
+.message-group.left .msg-time-mini {
+  align-self: flex-start;
+  margin-left: 2px;
+}
