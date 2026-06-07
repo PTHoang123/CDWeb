@@ -6,10 +6,12 @@ import {
   Type, Zap, CreditCard,
   MoreHorizontal, ThumbsUp,
   Send, Search, PanelRightClose,
-  Sticker, FileText, Folder,
+  Sticker, FileText, Folder, UserPlus,
+  Video, Phone, PhoneOff
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
+import Modal from "../Modal/Modal";
 import useWs from "../../context/useWs";
 import ImageGalleryModal from "./ImageGalleryModal";
 import {
@@ -236,6 +238,21 @@ export default function ChatWindow({
   const [historyLoading, setHistoryLoading] = useState(false);
   const inputRef = useRef(null);
 
+  // --- States cho Modal Mời thành viên ---
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteUsername, setInviteUsername] = useState("");
+  const [inviteStatus, setInviteStatus] = useState("");
+
+  // --- States & Refs cho Video Call WebRTC ---
+  const [callState, setCallState] = useState("idle"); // idle, calling, receiving, active
+  const [callData, setCallData] = useState(null); // Lưu { to, from, sdp }
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const rtcServers = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  };
 
   useEffect(() => {
     if (!connected) {
@@ -371,6 +388,35 @@ export default function ChatWindow({
       cancelled = true;
     };
   }, [client, connected, chatType, chatTo, currentUsername]);
+
+  // --- LẮNG NGHE TÍN HIỆU WEBRTC ---
+  useEffect(() => {
+    if (!client) return;
+    const off = client.on("json", async (payload) => {
+      const unwrapped = unwrapServerMessage(payload);
+      if (unwrapped?.event !== "WEBRTC_SIGNAL") return;
+
+      const signalData = unwrapped.data;
+      if (signalData.to !== currentUsername) return; // Chỉ xử lý nếu gọi đúng mình
+
+      const { from, signalType, sdp, candidate } = signalData;
+      const pc = peerConnectionRef.current;
+
+      if (signalType === "offer") {
+        setCallState("receiving");
+        setCallData({ from, to: currentUsername, sdp });
+      } else if (signalType === "answer") {
+        setCallState("active");
+        if (pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      } else if (signalType === "ice") {
+        if (pc && candidate) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } else if (signalType === "end" || signalType === "reject") {
+        endCallLocal();
+        if (signalType === "reject") alert(`${from} đã từ chối cuộc gọi.`);
+      }
+    });
+    return () => off();
+  }, [client, currentUsername]);
 
   // --- States quản lý hiển thị Popup ---
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -614,20 +660,33 @@ export default function ChatWindow({
       }
       const { type, content } = parseMessageContent(mes);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: nextId(),
-          side: isSameUser(from, currentUsername) ? "right" : "left",
-          author: from || "Unknown",
-          type: type,
-          content: content,
-          time: new Date().toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        },
-      ]);
+      setMessages((prev) => {
+        const isMe = isSameUser(from, currentUsername);
+        
+        // Tránh lặp tin nhắn (Deduplication logic): 
+        // Nếu là tin do mình gửi, và nội dung giống hệt tin nhắn cuối cùng trên màn hình (đã hiển thị bằng Optimistic UI)
+        if (isMe && prev.length > 0) {
+            const lastMsg = prev[prev.length - 1];
+            if (lastMsg.content === content && lastMsg.type === type) {
+                return prev; // Bỏ qua, không thêm mới nữa
+            }
+        }
+
+        return [
+          ...prev,
+          {
+            id: nextId(),
+            side: isMe ? "right" : "left",
+            author: from || "Unknown",
+            type: type,
+            content: content,
+            time: new Date().toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+        ];
+      });
     });
 
     return () => off();
@@ -647,6 +706,7 @@ export default function ChatWindow({
       {
         id: nextId(),
         side: "right",
+        type: "text",
         content: mes, // Hiển thị text gốc
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
@@ -659,13 +719,6 @@ export default function ChatWindow({
 
     // 2. Gửi lên Server (MÃ HÓA NỘI DUNG)
     try {
-      if (chatType === "room" && chatTo) {
-        await wsJoinRoom(client, chatTo);
-        await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 }).catch(
-            () => {}
-        );
-      }
-
       // --- SỬA Ở ĐÂY: Dùng safeEncode(mes) ---
       const encodedMes = safeEncode(mes);
       await wsSendChat(client, { type: chatType, to: chatTo, mes: encodedMes });
@@ -683,6 +736,7 @@ export default function ChatWindow({
       const next = {
         id: nextId(),
         side: "right",
+        type: "text",
         content: likeEmoji,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
@@ -713,6 +767,129 @@ export default function ChatWindow({
     }
   };
 
+  // --- HÀM XỬ LÝ MỜI BẠN BÈ VÀO NHÓM ---
+  const handleInviteToRoom = () => {
+    setIsInviteModalOpen(true);
+    setInviteUsername("");
+    setInviteStatus("");
+  };
+
+  const handleConfirmInvite = async () => {
+    const friendName = inviteUsername.trim();
+    if (!friendName) return;
+
+    if (client && connected) {
+        const sysMsg = `${currentUsername} đã thêm ${friendName.trim()} vào nhóm.`;
+        const encodedMes = safeEncode(sysMsg);
+        
+        try {
+            await wsSendChat(client, { type: "room", to: chatTo, mes: encodedMes });
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: nextId(),
+                side: "right", // Tin nhắn hệ thống báo mời
+                type: "text",
+                content: sysMsg,
+                time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              }
+            ]);
+            setInviteStatus(`Đã thêm ${friendName.trim()} thành công!`);
+            setTimeout(() => {
+                setIsInviteModalOpen(false);
+            }, 1500);
+        } catch (e) {
+            setInviteStatus("Lỗi khi mời thành viên!");
+        }
+    }
+  };
+
+  // --- CÁC HÀM XỬ LÝ VIDEO CALL WEBRTC ---
+  const startCall = async () => {
+    try {
+      setCallState("calling");
+      setCallData({ to: chatTo, from: currentUsername });
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+      const pc = new RTCPeerConnection(rtcServers);
+      peerConnectionRef.current = pc;
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          client.sendJson({ action: "onchat", data: { event: "WEBRTC_SIGNAL", data: { to: chatTo, signalType: "ice", candidate: event.candidate } } });
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      client.sendJson({ action: "onchat", data: { event: "WEBRTC_SIGNAL", data: { to: chatTo, signalType: "offer", sdp: offer } } });
+    } catch (e) {
+      alert("Không thể truy cập Camera/Micro. " + e.message);
+      endCallLocal();
+    }
+  };
+
+  const acceptCall = async () => {
+    try {
+      setCallState("active");
+      const { from, sdp } = callData;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+      const pc = new RTCPeerConnection(rtcServers);
+      peerConnectionRef.current = pc;
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          client.sendJson({ action: "onchat", data: { event: "WEBRTC_SIGNAL", data: { to: from, signalType: "ice", candidate: event.candidate } } });
+        }
+      };
+
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      client.sendJson({ action: "onchat", data: { event: "WEBRTC_SIGNAL", data: { to: from, signalType: "answer", sdp: answer } } });
+    } catch (e) {
+      alert("Không thể truy cập Camera/Micro.");
+      rejectCall();
+    }
+  };
+
+  const rejectCall = () => {
+    if (callData && callData.from) {
+      client.sendJson({ action: "onchat", data: { event: "WEBRTC_SIGNAL", data: { to: callData.from, signalType: "reject" } } });
+    }
+    endCallLocal();
+  };
+
+  const endCall = () => {
+    const target = callState === "calling" ? callData?.to : callData?.from;
+    if (target) client.sendJson({ action: "onchat", data: { event: "WEBRTC_SIGNAL", data: { to: target, signalType: "end" } } });
+    endCallLocal();
+  };
+
+  const endCallLocal = () => {
+    if (peerConnectionRef.current) { peerConnectionRef.current.close(); peerConnectionRef.current = null; }
+    if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(track => track.stop()); localStreamRef.current = null; }
+    setCallState("idle");
+    setCallData(null);
+  };
+
   const MOCK_STICKERS = [
     "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46366&size=130",
     "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46367&size=130",
@@ -741,6 +918,22 @@ export default function ChatWindow({
         </div>
 
         <div className="chatWindow__header-actions">
+          {/* NÚT GỌI VIDEO - CHỈ HIỆN KHI CHAT 1-1 */}
+          {chatType === "people" && (
+            <div className="header-icon" title="Gọi Video" onClick={startCall}>
+              <Video size={22} />
+            </div>
+          )}
+
+          {chatType === "room" && (
+            <div
+              className="header-icon"
+              title="Thêm thành viên"
+              onClick={handleInviteToRoom}
+            >
+              <UserPlus size={22} />
+            </div>
+          )}
           <div className="header-icon" title="Tìm kiếm tin nhắn">
             <Search size={22} />
           </div>
@@ -951,6 +1144,78 @@ export default function ChatWindow({
         allMessages={messages}
         //
       />
+
+      {/* Modal Mời Thành Viên */}
+      <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        title="Thêm thành viên"
+      >
+        <div style={{ padding: "20px" }}>
+          <div style={{ marginBottom: "15px" }}>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: 500, color: "#333" }}>
+              Tên tài khoản
+            </label>
+            <input
+              type="text"
+              style={{
+                width: "100%", padding: "10px", borderRadius: "6px",
+                border: "1px solid #ccc", outline: "none", boxSizing: "border-box", color: "#333"
+              }}
+              placeholder="Nhập tên tài khoản..."
+              value={inviteUsername}
+              onChange={(e) => setInviteUsername(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleConfirmInvite()}
+              autoFocus
+            />
+          </div>
+          
+          {inviteStatus && (
+            <div style={{ color: inviteStatus.includes("thành công") ? "#19c37d" : "red", marginBottom: "15px", fontSize: "14px" }}>
+              {inviteStatus}
+            </div>
+          )}
+          
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+            <button onClick={() => setIsInviteModalOpen(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ccc", background: "#f5f5f5", color: "#333", cursor: "pointer" }}>
+              Hủy
+            </button>
+            <button onClick={handleConfirmInvite} disabled={!inviteUsername.trim()} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "#0068ff", color: "white", cursor: "pointer", opacity: !inviteUsername.trim() ? 0.7 : 1 }}>
+              Thêm
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* --- MÀN HÌNH GỌI VIDEO --- */}
+      {callState !== "idle" && (
+        <div className="video-call-overlay">
+          <div className="videos-wrapper">
+            <video ref={remoteVideoRef} autoPlay playsInline className="remote-video" />
+            <video ref={localVideoRef} autoPlay playsInline muted className="local-video" />
+          </div>
+          <div className="call-controls">
+            {callState === "receiving" ? (
+              <>
+                <div style={{ marginRight: "20px", fontSize: "18px" }}>{callData?.from} đang gọi video...</div>
+                <button onClick={acceptCall} style={{ background: "#00c853", padding: "12px 24px", border: "none", borderRadius: "24px", color: "white", cursor: "pointer", display: "flex", gap: "8px", fontWeight: "bold" }}>
+                  <Phone size={20} /> Nghe
+                </button>
+                <button onClick={rejectCall} style={{ background: "#ff3b30", padding: "12px 24px", border: "none", borderRadius: "24px", color: "white", cursor: "pointer", display: "flex", gap: "8px", fontWeight: "bold" }}>
+                  <PhoneOff size={20} /> Từ chối
+                </button>
+              </>
+            ) : (
+              <>
+                {callState === "calling" && <div style={{ marginRight: "20px", fontSize: "18px" }}>Đang gọi {callData?.to}...</div>}
+                <button onClick={endCall} style={{ background: "#ff3b30", padding: "12px 24px", border: "none", borderRadius: "24px", color: "white", cursor: "pointer", display: "flex", gap: "8px", fontWeight: "bold" }}>
+                  <PhoneOff size={20} /> Kết thúc
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

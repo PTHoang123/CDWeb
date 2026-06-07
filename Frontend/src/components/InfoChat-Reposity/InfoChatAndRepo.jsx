@@ -176,7 +176,10 @@ export default function InfoChatAndRepo({ activeChat, allMessages = [] }) {
                 <div className="info-actions">
                     <div className="action-item"><div className="action-icon-circle"><Bell size={20} /></div><span>Tắt thông báo</span></div>
                     <div className="action-item"><div className="action-icon-circle"><Pin size={20} /></div><span>Ghim hội thoại</span></div>
-                    <div className="action-item"><div className="action-icon-circle"><Users size={20} /></div><span>Tạo nhóm</span></div>
+                    <div className="action-item" onClick={() => { if(isRoom) alert("Hãy nhấn vào biểu tượng 👤+ ở góc trên cùng của khung chat để thêm người nhé!"); }}>
+                        <div className="action-icon-circle"><Users size={20} /></div>
+                        <span>{isRoom ? "Thêm thành viên" : "Tạo nhóm"}</span>
+                    </div>
                     <div className="action-item"><div className="action-icon-circle"><Search size={20} /></div><span>Tìm tin nhắn</span></div>
                 </div>
             </div>

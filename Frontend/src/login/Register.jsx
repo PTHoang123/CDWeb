@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import "./loginStyle.css";
 import useWs from "../context/useWs";
-import { wsRegister } from "../api/chatApi";
+import { registerOverWs } from "../api/wsAuth";
 
 const IMG_WELCOME = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f44b.png"; // Ảnh Hi/Welcome
 const IMG_HAPPY = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f973.png";
+const IMG_SAD = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f622.png";
 export default function Register({ onBackToLogin }) {
   const { client, connected } = useWs();
 
@@ -21,11 +22,10 @@ export default function Register({ onBackToLogin }) {
     setSuccess("");
 
     try {
-      // REGISTER is only about creating an account on the WS server.
-      await wsRegister(client, username.trim(), password);
-      setSuccess(
-        "Register request sent. Check server response / try login now."
-      );
+      const res = await registerOverWs(client, username.trim(), password.trim());
+      if (res && res.status === "success") {
+        setSuccess("Đăng ký thành công! Bạn có thể quay lại để đăng nhập.");
+      }
     } catch (err) {
       setError(err?.message || "Register failed");
     } finally {
@@ -60,7 +60,7 @@ export default function Register({ onBackToLogin }) {
 
         <div className="mascot-container">
           <img
-              src={success ? IMG_HAPPY : IMG_WELCOME}
+              src={success ? IMG_HAPPY : (error ? IMG_SAD : IMG_WELCOME)}
               alt="Status Mascot"
               className="mascot-img"
           />

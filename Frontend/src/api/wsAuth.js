@@ -2,6 +2,59 @@ import {wsRelogin, wsLogout} from "./chatApi";
 
 // WebSocket-based authentication using the shared WsClient
 
+// Hàm xử lý đăng ký
+export async function registerOverWs(
+    client,
+    username,
+    password,
+    {timeoutMs = 10000} = {}
+) {
+    const request = {
+        action: "onchat",
+        data: {
+            event: "REGISTER",
+            data: {
+                user: username,
+                pass: password,
+            },
+        },
+    };
+
+    return new Promise((resolve, reject) => {
+        let done = false;
+
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            off();
+            reject(new Error("Quá thời gian chờ đăng ký"));
+        }, timeoutMs);
+
+        const off = client.on("json", (response) => {
+            if (response?.event !== "REGISTER") return;
+
+            clearTimeout(timer);
+            if (done) return;
+            done = true;
+            off();
+
+            if (response.status === "success") {
+                resolve(response);
+            } else {
+                reject(new Error(response.mes || "Đăng ký thất bại"));
+            }
+        });
+
+        client.sendJson(request).catch(() => {
+            clearTimeout(timer);
+            if (done) return;
+            done = true;
+            off();
+            reject(new Error("Không thể kết nối đến server"));
+        });
+    });
+}
+
 export async function loginOverWs(
     client,
     username,
@@ -119,6 +172,3 @@ export async function logoutOverWs(client) {
         console.error("Lỗi khi gửi lệnh logout:", error);
     }
 }
-
-
-

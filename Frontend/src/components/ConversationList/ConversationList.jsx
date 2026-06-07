@@ -198,11 +198,6 @@ const ConversationList = ({
       const roomData = unwrapped.data;
       const ownerId = roomData.own || roomData.owner;
 
-      // Logic lọc: Nếu tạo phòng, chỉ hiện khi mình là chủ. Nếu join, luôn hiện.
-      if (unwrapped.event === "CREATE_ROOM") {
-        const myName = user.name || user.username || user.id;
-        if (String(ownerId) !== String(myName)) return;
-      }
 
       const newRoom = {
         type: "room",
@@ -230,7 +225,7 @@ const ConversationList = ({
     return () => off();
   }, [client, authReady, user, onSelectConversation, selectedKey]);
 
-  // --- LOGIC 3: Lấy danh sách User (GET_USER_LIST) ---
+  // --- LOGIC 3: Lấy danh sách User đã từng chat (GET_USER_LIST) ---
   useEffect(() => {
     if (!authReady || !client || !user) return;
 
@@ -615,6 +610,15 @@ const ConversationList = ({
                     className="btn-outline"
                     onClick={() => {
                       const key = `people:${user.name}`;
+                      
+                      // Thêm user vào danh sách ở Sidebar nếu chưa có
+                      setUsers((prev) => {
+                        if (prev.some((u) => String(u.id) === String(user.name))) {
+                          return prev;
+                        }
+                        return [{ type: "people", id: String(user.name), name: String(user.name) }, ...prev];
+                      });
+
                       onSelectConversation?.({
                         type: "people",
                         to: user.name,
