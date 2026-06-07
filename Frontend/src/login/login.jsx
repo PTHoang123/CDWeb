@@ -91,8 +91,8 @@ const Login = ({ onGoRegister, onLoginSuccess }) => {
         setError("");
 
         try {
-            const finalUser = autoUser || username;
-            const finalPass = autoPass || password;
+            const finalUser = (autoUser || username).trim();
+            const finalPass = (autoPass || password).trim();
 
             // Reset cờ relogin để lần sau F5 lại chạy được logic check
             hasTriedRelogin.current = false;

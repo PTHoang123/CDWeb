@@ -1,6 +1,10 @@
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/dto/ChatRequest.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/handler/ChatWebSocketHandler.java
+/Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/entity/User.java
+/Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/entity/ChatMessage.java
+/Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/repository/ChatMessageRepository.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/dto/RequestData.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/ChatApplication.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/dto/ChatResponse.java
+/Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/repository/UserRepository.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/config/WebSocketConfig.java

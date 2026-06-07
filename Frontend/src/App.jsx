@@ -11,7 +11,7 @@ import { WsProvider } from "./context/WsContext";
 import useWs from "./context/useWs";
 import { logoutOverWs } from "./api/wsAuth";
 
-const WS_URL = "wss://chat.longapp.site/chat/chat";
+const WS_URL = "ws://localhost:8082/chat/chat";
 
 function AppInner() {
 
