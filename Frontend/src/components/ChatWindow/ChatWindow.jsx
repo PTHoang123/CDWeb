@@ -18,7 +18,6 @@ import {
   wsCheckUserOnline,
   wsGetPeopleChatMes,
   wsGetRoomChatMes,
-  wsJoinRoom,
   wsSendChat,
 } from "../../api/chatApi";
 
@@ -291,6 +290,7 @@ export default function ChatWindow({
       onMessagesUpdate(messages);
     }
   }, [messages, onMessagesUpdate]);
+
   // Load chat history when switching conversation
   useEffect(() => {
     if (!connected) return;
@@ -304,16 +304,26 @@ export default function ChatWindow({
         setMessages([]);
 
         if (chatType === "room") {
-          // phải join room trước khi lấy lịch sử
-          await wsJoinRoom(client, chatTo);
-          await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 }).catch(
-            () => {}
-          );
-
+          // ✅ Không gọi wsJoinRoom ở đây nữa — chỉ lấy lịch sử
+          // Nếu user chưa là thành viên, backend sẽ trả về error
           await wsGetRoomChatMes(client, chatTo, 1);
           const res = await waitForEvent(client, "GET_ROOM_CHAT_MES", {
             timeoutMs: 8000,
           });
+
+          // Nếu chưa là thành viên, backend trả error
+          if (res.status === "error") {
+            if (!cancelled) setMessages([{
+              id: "sys-not-member",
+              side: "left",
+              type: "text",
+              author: "System",
+              content: res.mes || "Bạn chưa tham gia room này.",
+              time: ""
+            }]);
+            return;
+          }
+
           const list = extractHistoryList(res);
           // hiển thị theo thứ tự từ cũ đến mới
           const ordered =
@@ -329,11 +339,11 @@ export default function ChatWindow({
             const side = isSameUser(author, currentUsername) ? "right" : "left";
             const { type, content } = parseContentAndType(rawContent);
             return {
-              id: nextId(), // Hoặc dùng raw.id nếu có
+              id: nextId(),
               side,
               author,
-              type: type,       // 'file', 'image', hoặc 'text'
-              content: content, // Object (nếu là file) hoặc String (nếu là text/ảnh)
+              type: type,
+              content: content,
               time: typeof time === "string"
                   ? time
                   : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -364,7 +374,7 @@ export default function ChatWindow({
             const side = isSameUser(author, currentUsername) ? "right" : "left";
             const { type, content } = parseContentAndType(rawContent);
             return {
-              id: nextId(), // Hoặc dùng raw.id nếu có
+              id: nextId(),
               side,
               author,
               type: type,
@@ -454,7 +464,7 @@ export default function ChatWindow({
 
     // 3. Hiển thị ngay lên UI (Optimistic Update) để người dùng thấy mượt mà
     const newMessage = {
-      id: nextId(), // Hoặc Date.now()
+      id: nextId(),
       side: "right",
       type: "sticker", // Loại tin nhắn là sticker
       content: url,    // Chỉ lưu URL để hiển thị
@@ -472,7 +482,6 @@ export default function ChatWindow({
   const handleImageSelect = async (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Thông báo đang xử lý (tùy chọn)
       console.log("Đang upload ảnh...");
 
       for (const file of Array.from(files)) {
@@ -485,7 +494,7 @@ export default function ChatWindow({
             id: Date.now() + Math.random(),
             side: "right",
             type: "image",
-            content: imageUrl, // Lưu ý: content giờ là URL
+            content: imageUrl,
             time: new Date().toLocaleTimeString("vi-VN", {
               hour: "2-digit",
               minute: "2-digit",
@@ -493,7 +502,7 @@ export default function ChatWindow({
           };
           setMessages((prev) => [...prev, newMessage]);
 
-          // 3. Gửi Link qua Chat Server (Không bao giờ bị văng vì link rất nhẹ)
+          // 3. Gửi Link qua Chat Server
           if (client && connected) {
             wsSendChat(client, {
               type: chatType,
@@ -509,7 +518,6 @@ export default function ChatWindow({
     e.target.value = null;
   };
 
-  // 2. Chọn File thường
   // --- XỬ LÝ FILE (Chọn 1 hoặc nhiều file) ---
   const handleFileSelect = async (e) => {
     const files = e.target.files;
@@ -544,8 +552,8 @@ export default function ChatWindow({
         setMessages(prev => [...prev, {
           id: Date.now(),
           side: "right",
-          type: "file",       // Quan trọng: type là file
-          content: filePayload, // Quan trọng: content là object
+          type: "file",
+          content: filePayload,
           author: currentUsername,
           time: new Date().toLocaleTimeString("vi-VN", {hour: "2-digit", minute:"2-digit"})
         }]);
@@ -556,18 +564,16 @@ export default function ChatWindow({
     setShowAttachMenu(false);
   };
 
-  // 3. Chọn Folder
   // --- XỬ LÝ FOLDER (Upload cả thư mục) ---
   const handleFolderSelect = (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Folder được tính là 1 tin nhắn gộp
       const newMessage = {
         id: nextId(),
         side: "right",
-        type: "folder", // Đánh dấu là folder
+        type: "folder",
         content: {
-          name: "Thư mục tải lên", // Tên folder (trình duyệt bảo mật thường chỉ lấy dc tên file con)
+          name: "Thư mục tải lên",
           itemCount: files.length,
         },
         time: new Date().toLocaleTimeString("vi-VN", {
@@ -600,20 +606,17 @@ export default function ChatWindow({
     setShowStickerPicker(false);
   };
 
-  // 2. Tạo ref để tham chiếu đến cuối danh sách chat
   const messagesEndRef = useRef(null);
 
-  // 3. Hàm cuộn xuống dưới cùng
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // 4. Gọi hàm cuộn mỗi khi danh sách messages thay đổi
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Receive messages from server (depends on what server pushes)
+  // Receive messages from server
   useEffect(() => {
     if (!client) return;
     const off = client.on("json", (payload) => {
@@ -662,13 +665,12 @@ export default function ChatWindow({
 
       setMessages((prev) => {
         const isMe = isSameUser(from, currentUsername);
-        
-        // Tránh lặp tin nhắn (Deduplication logic): 
-        // Nếu là tin do mình gửi, và nội dung giống hệt tin nhắn cuối cùng trên màn hình (đã hiển thị bằng Optimistic UI)
+
+        // Tránh lặp tin nhắn (Deduplication logic)
         if (isMe && prev.length > 0) {
             const lastMsg = prev[prev.length - 1];
             if (lastMsg.content === content && lastMsg.type === type) {
-                return prev; // Bỏ qua, không thêm mới nữa
+                return prev;
             }
         }
 
@@ -698,16 +700,15 @@ export default function ChatWindow({
     e.preventDefault();
     if (!canSend) return;
 
-    const mes = text.trim(); // Đây là text gốc có Emoji
+    const mes = text.trim();
 
-    // 1. Hiển thị ngay lên giao diện (Giữ nguyên mes gốc để người gửi thấy ngay)
     setMessages((prev) => [
       ...prev,
       {
         id: nextId(),
         side: "right",
         type: "text",
-        content: mes, // Hiển thị text gốc
+        content: mes,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -717,12 +718,9 @@ export default function ChatWindow({
     setText("");
     setShowEmojiPicker(false);
 
-    // 2. Gửi lên Server (MÃ HÓA NỘI DUNG)
     try {
-      // --- SỬA Ở ĐÂY: Dùng safeEncode(mes) ---
       const encodedMes = safeEncode(mes);
       await wsSendChat(client, { type: chatType, to: chatTo, mes: encodedMes });
-
     } catch {
       // optional: mark as failed
     }
@@ -746,15 +744,7 @@ export default function ChatWindow({
       setMessages((prev) => [...prev, next]);
       try {
         if (client && connected) {
-          // Nếu là Room thì cần đảm bảo đã Join (Logic giống onSubmit)
-          if (chatType === "room" && chatTo) {
-            // Thường room đã join lúc useEffect rồi, nhưng check lại cho chắc nếu cần
-            // Tuy nhiên để nhanh gọn cho nút Like, ta cứ gửi thẳng
-          }
-
-          // MÃ HÓA emoji 👍 thành Base64 trước khi gửi
           const encodedMes = safeEncode(likeEmoji);
-
           await wsSendChat(client, {
             type: chatType,
             to: chatTo,
@@ -781,14 +771,14 @@ export default function ChatWindow({
     if (client && connected) {
         const sysMsg = `${currentUsername} đã thêm ${friendName.trim()} vào nhóm.`;
         const encodedMes = safeEncode(sysMsg);
-        
+
         try {
             await wsSendChat(client, { type: "room", to: chatTo, mes: encodedMes });
             setMessages((prev) => [
               ...prev,
               {
                 id: nextId(),
-                side: "right", // Tin nhắn hệ thống báo mời
+                side: "right",
                 type: "text",
                 content: sysMsg,
                 time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -894,7 +884,6 @@ export default function ChatWindow({
     "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46366&size=130",
     "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46367&size=130",
     "https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=46368&size=130",
-    // Thêm link ảnh sticker của bạn vào đây
   ];
 
   return (
@@ -956,24 +945,20 @@ export default function ChatWindow({
           const showDate = dateString !== lastDate;
           return (
               <React.Fragment key={m.id || index}>
-                {/* Giữ nguyên phần hiển thị ngày tháng */}
                 {showDate && (
                     <div className="date-separator">
                       <span>{dateString}</span>
                     </div>
                 )}
-
                 <MessageBubble
                     message={m}
-                    onImageClick={handleImageClick} // Truyền hàm xuống con
+                    onImageClick={handleImageClick}
                 />
-
               </React.Fragment>
           );
         })}
-        {/* --- CÁC POPUP CHỨC NĂNG (Đặt vị trí absolute so với footer) --- */}
+        {/* --- CÁC POPUP CHỨC NĂNG --- */}
         <div className="chat-popups">
-          {/* 1. Emoji Picker */}
           {showEmojiPicker && (
             <div className="popup-container emoji-area">
               <EmojiPicker
@@ -984,7 +969,6 @@ export default function ChatWindow({
             </div>
           )}
 
-          {/* 2. Sticker Picker */}
           {showStickerPicker && (
             <div className="popup-container sticker-area">
               <div className="sticker-grid">
@@ -996,7 +980,6 @@ export default function ChatWindow({
                     alt="sticker"
                   />
                 ))}
-                {/* Fake thêm icon cho đầy */}
                 {[...Array(10)].map((_, i) => (
                   <div key={i} className="sticker-placeholder">
                     Sticker {i}
@@ -1006,7 +989,6 @@ export default function ChatWindow({
             </div>
           )}
 
-          {/* 3. Attach Menu (File/Folder) */}
           {showAttachMenu && (
             <div className="popup-container attach-menu">
               <div
@@ -1105,7 +1087,6 @@ export default function ChatWindow({
             onChange={(e) => setText(e.target.value)}
             placeholder={`Nhập @, tin nhắn tới ${title}`}
             onFocus={() => {
-              // Tự động đóng các popup khi gõ phím
               if (!showEmojiPicker) {
                 setShowStickerPicker(false);
                 setShowAttachMenu(false);
@@ -1142,7 +1123,6 @@ export default function ChatWindow({
         currentImage={selectedGalleryImg}
         onSelectImage={setSelectedGalleryImg}
         allMessages={messages}
-        //
       />
 
       {/* Modal Mời Thành Viên */}
@@ -1169,13 +1149,13 @@ export default function ChatWindow({
               autoFocus
             />
           </div>
-          
+
           {inviteStatus && (
             <div style={{ color: inviteStatus.includes("thành công") ? "#19c37d" : "red", marginBottom: "15px", fontSize: "14px" }}>
               {inviteStatus}
             </div>
           )}
-          
+
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
             <button onClick={() => setIsInviteModalOpen(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ccc", background: "#f5f5f5", color: "#333", cursor: "pointer" }}>
               Hủy

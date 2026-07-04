@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yourproject.chat.dto.ChatRequest;
 import com.yourproject.chat.dto.ChatResponse;
 import com.yourproject.chat.entity.ChatMessage;
+import com.yourproject.chat.entity.RoomMember;
 import com.yourproject.chat.entity.User;
 import com.yourproject.chat.repository.ChatMessageRepository;
+import com.yourproject.chat.repository.RoomMemberRepository;
 import com.yourproject.chat.repository.UserRepository;
-import com.yourproject.chat.service.JwtService;
+import com.yourproject.chat.security.JwtService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -31,20 +33,23 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     // Session → username (chỉ có sau khi login/relogin thành công)
     private final Map<WebSocketSession, String> sessionUsernames = new ConcurrentHashMap<>();
 
-    // roomName → Set<Session> (quản lý thành viên từng room)
+    // roomName → Set<Session> (in-memory, phục hồi lại sau RE_LOGIN)
     private final Map<String, Set<WebSocketSession>> roomMembers = new ConcurrentHashMap<>();
 
     private final UserRepository userRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final RoomMemberRepository roomMemberRepository;
     private final JwtService jwtService;
 
     public ChatWebSocketHandler(
             UserRepository userRepository,
             ChatMessageRepository chatMessageRepository,
+            RoomMemberRepository roomMemberRepository,
             JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.chatMessageRepository = chatMessageRepository;
+        this.roomMemberRepository = roomMemberRepository;
         this.jwtService = jwtService;
     }
 
@@ -62,10 +67,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         activeSessions.remove(session.getId());
         sessionUsernames.remove(session);
-
-        // Xóa session khỏi TẤT CẢ các room khi ngắt kết nối
         roomMembers.values().forEach(members -> members.remove(session));
-
         System.out.println("[WS] Đóng kết nối: " + session.getId());
     }
 
@@ -83,20 +85,20 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             JsonNode data = request.getData().getData();
 
             switch (event) {
-                case "REGISTER":           handleRegister(session, data);          break;
-                case "LOGIN":              handleLogin(session, data);             break;
-                case "RE_LOGIN":           handleRelogin(session, data);           break;
-                case "SEND_CHAT":          handleSendChat(session, data);          break;
-                case "CHECK_USER_EXIST":   handleCheckUserExist(session, data);    break;
-                case "CHECK_USER_ONLINE":  handleCheckUserOnline(session, data);   break;
-                case "GET_USER_LIST":      handleGetUserList(session, data);       break;
-                case "GET_PEOPLE_CHAT_MES":handleGetPeopleChatMes(session, data);  break;
-                case "GET_ROOM_CHAT_MES":  handleGetRoomChatMes(session, data);    break;
-                case "CREATE_ROOM":        handleCreateRoom(session, data);        break;
-                case "JOIN_ROOM":          handleJoinRoom(session, data);          break;
-                case "WEBRTC_SIGNAL":      handleWebRTCSignal(session, data);      break;
+                case "REGISTER":            handleRegister(session, data);          break;
+                case "LOGIN":               handleLogin(session, data);             break;
+                case "RE_LOGIN":            handleRelogin(session, data);           break;
+                case "SEND_CHAT":           handleSendChat(session, data);          break;
+                case "CHECK_USER_EXIST":    handleCheckUserExist(session, data);    break;
+                case "CHECK_USER_ONLINE":   handleCheckUserOnline(session, data);   break;
+                case "GET_USER_LIST":       handleGetUserList(session, data);       break;
+                case "GET_PEOPLE_CHAT_MES": handleGetPeopleChatMes(session, data);  break;
+                case "GET_ROOM_CHAT_MES":   handleGetRoomChatMes(session, data);    break;
+                case "CREATE_ROOM":         handleCreateRoom(session, data);        break;
+                case "JOIN_ROOM":           handleJoinRoom(session, data);          break;
+                case "WEBRTC_SIGNAL":       handleWebRTCSignal(session, data);      break;
                 default:
-                    sendError(session, event, "Sự kiện không được hỗ trợ: " + event);
+                    sendError(session, "ERROR", "Sự kiện không được hỗ trợ: " + event);
             }
         } catch (Exception e) {
             System.err.println("[WS] Lỗi xử lý message: " + e.getMessage());
@@ -125,7 +127,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         } else {
             User newUser = new User();
             newUser.setUsername(user);
-            newUser.setPassword(passwordEncoder.encode(pass)); // BCrypt hash
+            newUser.setPassword(passwordEncoder.encode(pass));
             userRepository.save(newUser);
 
             response.setStatus("success");
@@ -143,30 +145,25 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
         User existingUser = userRepository.findByUsername(user);
 
-        // So sánh password qua BCrypt (không plain text)
         if (existingUser == null || !passwordEncoder.matches(pass, existingUser.getPassword())) {
             response.setStatus("error");
             response.setMes("Sai tài khoản hoặc mật khẩu");
         } else {
             String token = jwtService.generateToken(user);
-
             response.setStatus("success");
             response.setMes("Đăng nhập thành công");
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("RE_LOGIN_CODE", token); // JWT thay cho UUID ngẫu nhiên
+            responseData.put("RE_LOGIN_CODE", token);
             responseData.put("username", user);
             response.setData(responseData);
 
             sessionUsernames.put(session, user);
+            restoreRoomSessions(session, user);
         }
         send(session, response);
     }
 
-    /**
-     * RE_LOGIN: frontend gửi token JWT (lưu ở localStorage), server xác thực token thay vì chỉ
-     * nhận username. Payload mới: { token: "..." } thay vì { user: "..." }
-     */
     private void handleRelogin(WebSocketSession session, JsonNode data) throws Exception {
         String token = getString(data, "token");
 
@@ -180,16 +177,28 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             response.setStatus("success");
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("RE_LOGIN_CODE", token); // trả lại token cũ nếu còn hạn
+            responseData.put("RE_LOGIN_CODE", token);
             responseData.put("username", username);
             response.setData(responseData);
 
             sessionUsernames.put(session, username);
+            restoreRoomSessions(session, username);
         } else {
             response.setStatus("error");
             response.setMes("Phiên đăng nhập không hợp lệ hoặc đã hết hạn");
         }
         send(session, response);
+    }
+
+    /**
+     * Sau khi login/relogin, khôi phục lại in-memory roomMembers từ DB
+     * để SEND_CHAT hoạt động đúng ngay mà không cần JOIN_ROOM lại.
+     */
+    private void restoreRoomSessions(WebSocketSession session, String username) {
+        List<String> myRooms = roomMemberRepository.findRoomsByUsername(username);
+        for (String roomName : myRooms) {
+            roomMembers.computeIfAbsent(roomName, k -> ConcurrentHashMap.newKeySet()).add(session);
+        }
     }
 
     // ─────────────────────────────────────────────
@@ -207,7 +216,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        // Lưu tin nhắn vào DB
+        // Kiểm tra quyền gửi vào room
+        if ("room".equals(type) && !roomMemberRepository.existsByRoomNameAndUsername(to, fromUser)) {
+            sendError(session, "SEND_CHAT", "Bạn chưa tham gia room này");
+            return;
+        }
+
         ChatMessage chatMsg = new ChatMessage();
         chatMsg.setType(type);
         chatMsg.setRecipient(to);
@@ -215,7 +229,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         chatMsg.setContent(mes);
         chatMessageRepository.save(chatMsg);
 
-        // Build response
         ChatResponse response = new ChatResponse();
         response.setEvent("SEND_CHAT");
         response.setStatus("success");
@@ -231,7 +244,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         TextMessage textMessage = new TextMessage(mapper.writeValueAsString(response));
 
         if ("people".equals(type)) {
-            // Gửi cho người nhận + các tab khác của người gửi (tránh lặp trên tab hiện tại)
             for (Map.Entry<WebSocketSession, String> entry : sessionUsernames.entrySet()) {
                 String username = entry.getValue();
                 WebSocketSession s = entry.getKey();
@@ -242,7 +254,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 }
             }
         } else {
-            // Room: chỉ gửi cho thành viên trong room, không broadcast toàn bộ
+            // Chỉ gửi cho session đang online trong room này
             Set<WebSocketSession> members = roomMembers.getOrDefault(to, Collections.emptySet());
             for (WebSocketSession s : members) {
                 if (s.isOpen() && !s.getId().equals(session.getId())) {
@@ -257,25 +269,30 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         String fromUser = sessionUsernames.get(session);
 
         List<ChatMessage> messages = chatMessageRepository.findConversation(fromUser, to);
-        List<Map<String, Object>> chatData = buildMessageList(messages);
 
         ChatResponse response = new ChatResponse();
         response.setEvent("GET_PEOPLE_CHAT_MES");
         response.setStatus("success");
-        response.setData(chatData);
+        response.setData(buildMessageList(messages));
         send(session, response);
     }
 
     private void handleGetRoomChatMes(WebSocketSession session, JsonNode data) throws Exception {
-        String room = getStringMultiKey(data, "to", "name");
+        String room     = getStringMultiKey(data, "to", "name");
+        String fromUser = sessionUsernames.get(session);
+
+        // Chỉ cho lấy lịch sử nếu là thành viên
+        if (!roomMemberRepository.existsByRoomNameAndUsername(room, fromUser)) {
+            sendError(session, "GET_ROOM_CHAT_MES", "Bạn chưa tham gia room này");
+            return;
+        }
 
         List<ChatMessage> messages = chatMessageRepository.findRoomMessages(room);
-        List<Map<String, Object>> chatData = buildMessageList(messages);
 
         ChatResponse response = new ChatResponse();
         response.setEvent("GET_ROOM_CHAT_MES");
         response.setStatus("success");
-        response.setData(chatData);
+        response.setData(buildMessageList(messages));
         send(session, response);
     }
 
@@ -285,13 +302,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private void handleCheckUserExist(WebSocketSession session, JsonNode data) throws Exception {
         String userToCheck = getStringMultiKey(data, "user", "username", "name");
+        User existingUser = userRepository.findByUsername(userToCheck);
 
         ChatResponse response = new ChatResponse();
         response.setEvent("CHECK_USER_EXIST");
 
-        User existingUser = userRepository.findByUsername(userToCheck);
         Map<String, Object> responseData = new HashMap<>();
-
         if (existingUser != null) {
             response.setStatus("success");
             responseData.put("status", true);
@@ -306,7 +322,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private void handleCheckUserOnline(WebSocketSession session, JsonNode data) throws Exception {
         String userToCheck = getStringMultiKey(data, "user", "username", "name");
-
         boolean isOnline = sessionUsernames.containsValue(userToCheck);
 
         ChatResponse response = new ChatResponse();
@@ -320,12 +335,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         send(session, response);
     }
 
+    /**
+     * GET_USER_LIST: chỉ trả về room mà user đã join (private).
+     */
     private void handleGetUserList(WebSocketSession session, JsonNode data) throws Exception {
         String currentUser = sessionUsernames.get(session);
-
         List<Map<String, Object>> userList = new ArrayList<>();
 
         if (currentUser != null) {
+            // Danh sách người đã từng chat 1-1
             List<User> interactedUsers = userRepository.findInteractedUsers(currentUser);
             for (User u : interactedUsers) {
                 if (currentUser.equals(u.getUsername())) continue;
@@ -335,8 +353,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 userList.add(userMap);
             }
 
-            List<String> allRooms = chatMessageRepository.findAllActiveRooms();
-            for (String room : allRooms) {
+            // Chỉ lấy room mà user đã join
+            List<String> myRooms = roomMemberRepository.findRoomsByUsername(currentUser);
+            for (String room : myRooms) {
                 Map<String, Object> roomMap = new HashMap<>();
                 roomMap.put("name", room);
                 roomMap.put("type", 1); // 1 = room
@@ -352,7 +371,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void handleCreateRoom(WebSocketSession session, JsonNode data) throws Exception {
-        String roomName   = getString(data, "name");
+        String roomName    = getString(data, "name");
         String currentUser = sessionUsernames.get(session);
 
         if (currentUser == null) {
@@ -360,7 +379,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        // Lưu tin nhắn hệ thống để room tồn tại sau khi F5
+        if (roomMemberRepository.existsByRoomNameAndUsername(roomName, currentUser)) {
+            sendError(session, "CREATE_ROOM", "Bạn đã tạo hoặc tham gia room này rồi");
+            return;
+        }
+
+        // Lưu tin nhắn hệ thống để room tồn tại trong DB
         ChatMessage initMsg = new ChatMessage();
         initMsg.setType("room");
         initMsg.setRecipient(roomName);
@@ -368,7 +392,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         initMsg.setContent(currentUser + " đã tạo nhóm chat");
         chatMessageRepository.save(initMsg);
 
-        // Người tạo room tự động join luôn
+        // Người tạo tự động join room: lưu DB + in-memory
+        roomMemberRepository.save(new RoomMember(roomName, currentUser));
         roomMembers.computeIfAbsent(roomName, k -> ConcurrentHashMap.newKeySet()).add(session);
 
         ChatResponse response = new ChatResponse();
@@ -380,26 +405,43 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         responseData.put("owner", currentUser);
         response.setData(responseData);
 
-        // Broadcast cho tất cả để danh sách room được cập nhật
-        TextMessage textMessage = new TextMessage(mapper.writeValueAsString(response));
-        for (WebSocketSession s : activeSessions.values()) {
-            if (s.isOpen()) s.sendMessage(textMessage);
-        }
+        // Chỉ gửi lại cho người tạo (room private, người khác không thấy)
+        send(session, response);
     }
 
     private void handleJoinRoom(WebSocketSession session, JsonNode data) throws Exception {
-        String roomName = getString(data, "name");
+        String roomName    = getString(data, "name");
+        String currentUser = sessionUsernames.get(session);
 
-        // Thêm session vào room — đây là nơi membership thực sự được ghi nhận
-        roomMembers.computeIfAbsent(roomName, k -> ConcurrentHashMap.newKeySet()).add(session);
+        if (currentUser == null) {
+            sendError(session, "JOIN_ROOM", "Chưa đăng nhập");
+            return;
+        }
 
         ChatResponse response = new ChatResponse();
         response.setEvent("JOIN_ROOM");
-        response.setStatus("success");
 
+        // Kiểm tra room có tồn tại không
+        boolean roomExists = !chatMessageRepository.findRoomMessages(roomName).isEmpty();
+        if (!roomExists) {
+            response.setStatus("error");
+            response.setMes("Room không tồn tại");
+            send(session, response);
+            return;
+        }
+
+        // Nếu chưa là thành viên → lưu vào DB
+        if (!roomMemberRepository.existsByRoomNameAndUsername(roomName, currentUser)) {
+            roomMemberRepository.save(new RoomMember(roomName, currentUser));
+        }
+
+        // Thêm vào in-memory
+        roomMembers.computeIfAbsent(roomName, k -> ConcurrentHashMap.newKeySet()).add(session);
+
+        response.setStatus("success");
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("name", roomName);
-        responseData.put("memberCount", roomMembers.get(roomName).size());
+        responseData.put("memberCount", roomMemberRepository.findUsernamesByRoomName(roomName).size());
         response.setData(responseData);
         send(session, response);
     }
@@ -420,8 +462,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         payload.put("from", fromUser);
         payload.put("to", to);
         if (data.has("signalType")) payload.put("signalType", data.get("signalType").asText());
-        if (data.has("sdp"))       payload.put("sdp", data.get("sdp"));
-        if (data.has("candidate")) payload.put("candidate", data.get("candidate"));
+        if (data.has("sdp"))        payload.put("sdp", data.get("sdp"));
+        if (data.has("candidate"))  payload.put("candidate", data.get("candidate"));
         response.setData(payload);
 
         TextMessage textMessage = new TextMessage(mapper.writeValueAsString(response));
@@ -436,12 +478,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     // Utilities
     // ─────────────────────────────────────────────
 
-    /** Gửi ChatResponse dưới dạng JSON */
     private void send(WebSocketSession session, ChatResponse response) throws Exception {
         session.sendMessage(new TextMessage(mapper.writeValueAsString(response)));
     }
 
-    /** Gửi error response nhanh */
     private void sendError(WebSocketSession session, String event, String message) throws Exception {
         ChatResponse response = new ChatResponse();
         response.setEvent(event);
@@ -450,18 +490,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         send(session, response);
     }
 
-    /** Lấy string từ JsonNode theo 1 key, mặc định "" */
     private String getString(JsonNode node, String key) {
         return getString(node, key, "");
     }
 
-    /** Lấy string từ JsonNode theo 1 key, với giá trị mặc định */
     private String getString(JsonNode node, String key, String defaultValue) {
         if (node == null || !node.has(key)) return defaultValue;
         return node.get(key).asText(defaultValue);
     }
 
-    /** Thử nhiều key theo thứ tự, lấy key đầu tiên có giá trị */
     private String getStringMultiKey(JsonNode node, String... keys) {
         if (node == null) return "";
         for (String key : keys) {
@@ -470,7 +507,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         return "";
     }
 
-    /** Build danh sách tin nhắn để trả về frontend */
     private List<Map<String, Object>> buildMessageList(List<ChatMessage> messages) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (ChatMessage m : messages) {

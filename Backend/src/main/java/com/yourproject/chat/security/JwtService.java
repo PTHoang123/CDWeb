@@ -1,4 +1,4 @@
-package com.yourproject.chat.service;
+package com.yourproject.chat.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

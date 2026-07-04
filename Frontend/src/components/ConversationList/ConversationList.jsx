@@ -147,7 +147,6 @@ const ConversationList = ({
   // Refs
   const onlineTsRef = useRef({});
   const onlineQueueRef = useRef(Promise.resolve());
-  // const refreshTimerRef = useRef(null);
 
   const effectiveSelectedId = selectedKey ?? selectedId;
 
@@ -183,25 +182,20 @@ const ConversationList = ({
     [client, authReady, user]
   );
 
-  // --- LOGIC 2: Lắng nghe Tạo phòng & Join phòng ---
+  // --- LOGIC 2: Lắng nghe Tạo phòng (chỉ CREATE_ROOM, không xử lý JOIN_ROOM ở đây) ---
   useEffect(() => {
     if (!authReady || !client || !user) return;
     const off = client.on("json", (message) => {
       const unwrapped = unwrapServerMessage(message);
-      if (
-        (unwrapped.event !== "CREATE_ROOM" &&
-          unwrapped.event !== "JOIN_ROOM") ||
-        unwrapped.status !== "success"
-      ) {
+
+      // ✅ Chỉ xử lý CREATE_ROOM — JOIN_ROOM được xử lý bằng reload GET_USER_LIST
+      if (unwrapped.event !== "CREATE_ROOM" || unwrapped.status !== "success") {
         return;
       }
+
       const roomData = unwrapped.data;
-      const ownerId = roomData.own || roomData.owner;
-
-
       const newRoom = {
         type: "room",
-        // Use room name for routing/history APIs (JOIN_ROOM/GET_ROOM_CHAT_MES use `name`)
         id: String(roomData.name),
         name: String(roomData.name),
       };
@@ -210,7 +204,7 @@ const ConversationList = ({
         return [newRoom, ...prev];
       });
 
-      // Auto-select the created/joined room
+      // Auto-select room vừa tạo
       const key = `room:${newRoom.id}`;
       setSelectedId(key);
       onSelectConversation?.({
@@ -311,7 +305,7 @@ const ConversationList = ({
       console.error("Lỗi tạo phòng:", error);
       alert("Lỗi server: " + error.message);
     }
-  }; // <--- Đã thêm dấu đóng ngoặc bị thiếu ở đây
+  };
 
   const handleJoinRoom = async () => {
     if (!joinRoomName.trim()) return;
@@ -323,6 +317,17 @@ const ConversationList = ({
 
     try {
       await wsJoinRoom(client, joinRoomName);
+      const res = await waitForEvent(client, "JOIN_ROOM", { timeoutMs: 6000 });
+
+      if (res.status === "error") {
+        alert(res.mes || "Không thể tham gia phòng này");
+        return;
+      }
+
+      // ✅ Reload danh sách từ server thay vì tự thêm vào state
+      // GET_USER_LIST listener (LOGIC 3) sẽ cập nhật rooms/users tự động
+      await wsGetUserList(client);
+
       setJoinRoomName("");
       setIsOpenJoinRoom(false);
     } catch (error) {
@@ -610,7 +615,7 @@ const ConversationList = ({
                     className="btn-outline"
                     onClick={() => {
                       const key = `people:${user.name}`;
-                      
+
                       // Thêm user vào danh sách ở Sidebar nếu chưa có
                       setUsers((prev) => {
                         if (prev.some((u) => String(u.id) === String(user.name))) {
