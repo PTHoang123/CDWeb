@@ -11,6 +11,7 @@ import com.yourproject.chat.repository.ChatMessageRepository;
 import com.yourproject.chat.repository.RoomMemberRepository;
 import com.yourproject.chat.repository.UserRepository;
 import com.yourproject.chat.security.JwtService;
+import com.yourproject.chat.security.Role;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -118,16 +119,18 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         ChatResponse response = new ChatResponse();
         response.setEvent("REGISTER");
 
-        if (user.isEmpty() || pass.isEmpty()) {
+        if (user == null || user.isEmpty() || pass == null || pass.isEmpty()) {
             response.setStatus("error");
             response.setMes("Tài khoản và mật khẩu không được để trống");
-        } else if (userRepository.findByUsername(user) != null) {
+        } else if (userRepository.findByUsername(user).isPresent()) {
             response.setStatus("error");
             response.setMes("Tài khoản đã tồn tại!");
         } else {
             User newUser = new User();
             newUser.setUsername(user);
+            newUser.setEmail(user + "@chat.local");
             newUser.setPassword(passwordEncoder.encode(pass));
+            newUser.setRole(Role.USER);
             userRepository.save(newUser);
 
             response.setStatus("success");
@@ -143,13 +146,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         ChatResponse response = new ChatResponse();
         response.setEvent("LOGIN");
 
-        User existingUser = userRepository.findByUsername(user);
+        Optional<User> userOptional = userRepository.findByUsername(user);
+        User existingUser = userOptional.orElse(null);
 
         if (existingUser == null || !passwordEncoder.matches(pass, existingUser.getPassword())) {
             response.setStatus("error");
             response.setMes("Sai tài khoản hoặc mật khẩu");
         } else {
-            String token = jwtService.generateToken(user);
+            String token = jwtService.generateToken(existingUser);
             response.setStatus("success");
             response.setMes("Đăng nhập thành công");
 
@@ -170,8 +174,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         ChatResponse response = new ChatResponse();
         response.setEvent("RE_LOGIN");
 
-        String username = jwtService.validateAndGetUsername(token);
-        User existingUser = (username != null) ? userRepository.findByUsername(username) : null;
+        String username = jwtService.extractUsername(token);
+        User existingUser = (username != null) ? userRepository.findByUsername(username).orElse(null) : null;
 
         if (existingUser != null) {
             response.setStatus("success");
@@ -302,13 +306,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private void handleCheckUserExist(WebSocketSession session, JsonNode data) throws Exception {
         String userToCheck = getStringMultiKey(data, "user", "username", "name");
-        User existingUser = userRepository.findByUsername(userToCheck);
+        Optional<User> existingUserOptional = userRepository.findByUsername(userToCheck);
 
         ChatResponse response = new ChatResponse();
         response.setEvent("CHECK_USER_EXIST");
 
         Map<String, Object> responseData = new HashMap<>();
-        if (existingUser != null) {
+        if (existingUserOptional.isPresent()) {
+            User existingUser = existingUserOptional.get();
             response.setStatus("success");
             responseData.put("status", true);
             responseData.put("user", existingUser.getUsername());

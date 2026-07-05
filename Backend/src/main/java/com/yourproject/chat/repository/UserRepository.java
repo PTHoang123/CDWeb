@@ -7,10 +7,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    User findByUsername(String username);
+    Optional<User> findByEmail(String email);
+
+    Optional<User> findByUsername(String username);
 
     @Query("SELECT DISTINCT u FROM User u WHERE u.username IN (SELECT m.sender FROM ChatMessage m WHERE m.recipient = :username AND m.type = 'people') OR u.username IN (SELECT m.recipient FROM ChatMessage m WHERE m.sender = :username AND m.type = 'people')")
     List<User> findInteractedUsers(@Param("username") String username);
