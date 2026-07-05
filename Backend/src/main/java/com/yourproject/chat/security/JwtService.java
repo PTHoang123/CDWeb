@@ -1,75 +1,92 @@
 package com.yourproject.chat.security;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.io.DecodingException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
 
-@Component
+@Service
 public class JwtService {
 
-    private final SecretKey key;
-    private final long expirationMs;
+    private final String jwtSecret;
+    private final long jwtExpirationMs;
 
-    /**
-     * Inject secret và expiration từ application.properties:
-     *   jwt.secret=your-very-long-secret-key-at-least-32-chars
-     *   jwt.expiration-ms=86400000
-     *
-     * Nếu không cấu hình, fallback về giá trị mặc định.
-     */
     public JwtService(
             @Value("${jwt.secret:changeme-please-use-a-real-secret-key-32c}") String secret,
             @Value("${jwt.expiration-ms:86400000}") long expirationMs
     ) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expirationMs = expirationMs;
+        this.jwtSecret = secret;
+        this.jwtExpirationMs = expirationMs;
     }
 
-    /**
-     * Tạo JWT token từ username.
-     */
-    public String generateToken(String username) {
-        Date now = new Date();
-        Date expiry = new Date(now.getTime() + expirationMs);
+    public String extractUsername(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
 
-        return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(now)
-                .setExpiration(expiry)
-                .signWith(key)
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
+    public String generateToken(UserDetails userDetails) {
+        return generateToken(new HashMap<>(), userDetails);
+    }
+
+    public String generateToken(
+            Map<String, Object> extraClaims,
+            UserDetails userDetails
+    ) {
+        return Jwts
+                .builder()
+                .setClaims(extraClaims)
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
+                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    /**
-     * Xác thực token và trả về username.
-     * Trả về null nếu token không hợp lệ hoặc đã hết hạn.
-     */
-    public String validateAndGetUsername(String token) {
-        if (token == null || token.isBlank()) return null;
+    public boolean isTokenValid(String token, UserDetails userDetails) {
+        final String username = extractUsername(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+    }
 
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts
+                .parserBuilder()
+                .setSigningKey(getSignInKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private Key getSignInKey() {
+        byte[] keyBytes;
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            return claims.getSubject();
-        } catch (ExpiredJwtException e) {
-            System.out.println("[JWT] Token đã hết hạn: " + e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            System.out.println("[JWT] Token không được hỗ trợ: " + e.getMessage());
-        } catch (MalformedJwtException e) {
-            System.out.println("[JWT] Token không đúng định dạng: " + e.getMessage());
-        } catch (JwtException | IllegalArgumentException e) {
-            System.out.println("[JWT] Token không hợp lệ: " + e.getMessage());
+            keyBytes = Decoders.BASE64.decode(jwtSecret);
+        } catch (DecodingException | IllegalArgumentException ex) {
+            keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         }
-
-        return null;
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 }
