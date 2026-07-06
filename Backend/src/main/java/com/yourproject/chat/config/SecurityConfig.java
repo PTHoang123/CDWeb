@@ -38,8 +38,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/**", "/ws/**", "/chat/**") // Allow auth endpoints and websocket connections
-                        .permitAll()
+                    .requestMatchers("/api/auth/**", "/ws/**", "/chat/**", "/api/chat/media/**", "/uploads/**").permitAll()
                         .anyRequest()
                         .authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

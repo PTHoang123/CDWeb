@@ -162,3 +162,25 @@
   margin-left: 2px;
   opacity: 1; /* Bỏ opacity mờ cũ nếu cần rõ hơn */
 }
+.msg__voice-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+  min-width: 220px;
+}
+
+.msg__voice-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.msg__audio-player {
+  width: 100%;
+  height: 36px;
+  outline: none;
+}

@@ -92,10 +92,14 @@ function normalizeUserListPayload(payload) {
         const t = typeof item === "object" && item !== null ? item.type : null;
 
         if (t === 1) {
+          const owner = typeof item === "object" && item !== null
+            ? (item.own ?? item.owner ?? null)
+            : null;
           typedRooms.push({
             type: "room",
             id: String(name),
             name: String(name),
+            owner: owner ? String(owner) : null,
           });
         } else {
           typedUsers.push({
@@ -125,6 +129,7 @@ const ConversationList = ({
   onSelectConversation,
   selectedKey,
   currentUsername,
+  onDeleteRoom, // callback(roomId) từ parent để đóng ChatWindow nếu đang mở
 }) => {
   const { client, connected, user, authReady } = useWs();
   const [activeTab, setActiveTab] = useState("priority");
@@ -198,6 +203,7 @@ const ConversationList = ({
         type: "room",
         id: String(roomData.name),
         name: String(roomData.name),
+        owner: roomData.own ?? roomData.owner ?? currentUsername ?? null,
       };
       setRooms((prev) => {
         if (prev.some((r) => r.id === newRoom.id)) return prev;
@@ -211,6 +217,7 @@ const ConversationList = ({
         type: "room",
         to: newRoom.id,
         name: newRoom.name,
+        owner: newRoom.owner,
         key,
       });
 

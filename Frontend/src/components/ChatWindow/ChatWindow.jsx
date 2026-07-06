@@ -7,7 +7,7 @@ import {
   MoreHorizontal, ThumbsUp,
   Send, Search, PanelRightClose,
   Sticker, FileText, Folder, UserPlus,
-  Video, Phone, PhoneOff
+  Video, Phone, PhoneOff, Mic
 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import "./chatWindow.css";
@@ -756,6 +756,150 @@ export default function ChatWindow({
       }
     }
   };
+// Khởi tạo các biến global ở phạm vi file để quản lý trạng thái ghi âm
+let mediaRecorder = null;
+let audioChunks = [];
+let startTime = 0;
+
+/**
+ * 1. Hàm bắt đầu ghi âm bằng Micro
+ */
+const startVoiceRecording = async () => {
+    // CHÈN DÒNG NÀY: Để kiểm tra chuột đã ăn vào nút chưa
+    console.log(">>> 1. Đã nhận sự kiện click/bấm giữ chuột!"); 
+    
+    audioChunks = [];
+    startTime = Date.now();
+    
+    // Kiểm tra xem trình duyệt có hỗ trợ hoặc có bị chặn quyền không
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Trình duyệt của bạn ĐANG CHẶN Micro do không có HTTPS (Secure Context)!");
+        return;
+    }
+
+    try {
+        console.log(">>> 2. Đang xin quyền Micro từ hệ thống...");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        console.log(">>> 3. Đã được cấp quyền! Bắt đầu ghi âm...");
+        mediaRecorder = new MediaRecorder(stream);
+        
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        
+         mediaRecorder.onstop = async () => {
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    
+    const formData = new FormData();
+    formData.append("file", audioBlob, "voice.webm");
+    
+    try {
+        // 1. Gọi API Upload file lên Backend Spring Boot qua cổng 8082
+        const response = await fetch("http://localhost:8082/api/chat/media/upload-voice", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "Authorization": "Bearer " + localStorage.getItem("token")
+            }
+        });
+        
+        if (!response.ok) {
+            console.error("Lỗi Upload File:", response.status);
+            return;
+        }
+        
+        const result = await response.json();
+        
+        if (result.url) {
+            // =========================================================================
+            // BƯỚC 2: CẬP NHẬT NGAY VÀO STATE ĐỂ HIỂN THỊ LÊN UI CỦA MÌNH (REAL-TIME)
+            // =========================================================================
+            const nextVoice = {
+                id: nextId(), // Sử dụng hàm sinh ID giống hệt hàm Like của bạn
+                side: "right", // Mình gửi thì hiển thị bên phải
+                type: "text",  // Giữ "text" để nhảy vào bộ lọc link file âm thanh của MessageBubble
+                content: result.url, // Chuỗi thô: "/uploads/voice/xxx.webm"
+                duration: duration,  // Truyền số giây để MessageBubble hiển thị thời lượng
+                time: new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                }),
+            };
+            
+            // Đẩy ngay vào danh sách tin nhắn để vẽ lên màn hình không cần reload
+            setMessages((prev) => [...prev, nextVoice]);
+
+            // =========================================================================
+            // BƯỚC 3: BẮN QUA WEBSOCKET CHO ĐỐI PHƯƠNG (GIỮ NGUYÊN LINK THÔ KHÔNG MÃ HÓA)
+            // =========================================================================
+            if (client && connected) { // Sử dụng đúng biến client và connected của bạn
+                await wsSendChat(client, {
+                    type: chatType,   // Đồng bộ biến chatType (people/room) giống nút Like
+                    to: chatTo,       // Đồng bộ biến chatTo giống nút Like
+                    mes: result.url,  // Đường dẫn file âm thanh
+                    duration: duration // Đính kèm thời lượng cho đối phương nhận được
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Lỗi gửi tin nhắn thoại:", e);
+    }
+};
+        
+        mediaRecorder.start();
+    } catch (error) {
+        // CHÈN DÒNG NÀY: Để xem lỗi cụ thể là gì
+        alert("Lỗi Micro: " + error.message);
+        console.error("Lỗi chi tiết:", error);
+    }
+};
+
+/**
+ * 2. Hàm dừng ghi âm khi người dùng thả tay
+ */
+const stopVoiceRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop()); // Tắt mic để bảo mật/tiết kiệm pin
+        console.log("Đã dừng thu âm.");
+    }
+};
+
+/**
+ * 3. Hàm gửi tin nhắn CHỮ (Vẫn bọc mã hóa chống lỗi font tiếng Việt)
+ */
+const sendTextMessage = (text) => {
+    wsSendChat(client, {
+        type: "people",
+        to: chatTo,
+        mes: safeEncode(text)
+    });
+};
+
+/**
+ * 4. Hàm render hiển thị một tin nhắn đơn lẻ trên UI
+ */
+const renderSingleMessage = (msg) => {
+    // Bước 1: Thử giải mã nội dung tin nhắn bằng hàm safeDecode
+    const rawContent = safeDecode(msg.mes);
+
+    // Bước 2: Kiểm tra nếu nội dung là đường dẫn file âm thanh thoại
+    if (rawContent.includes("/uploads/voice/")) {
+        return (
+            <div key={msg.id} className="chat-bubble voice">
+                🎤 <span>Tin nhắn thoại ({msg.duration || 0}s)</span>
+                <audio controls src={`http://localhost:8082${rawContent}`} />
+            </div>
+        );
+    }
+
+    // Bước 3: Nếu không phải link voice, hiển thị text bình thường
+    return (
+        <div key={msg.id} className="chat-bubble text">
+            {rawContent}
+        </div>
+    );
+};
 
   // --- HÀM XỬ LÝ MỜI BẠN BÈ VÀO NHÓM ---
   const handleInviteToRoom = () => {
@@ -1068,9 +1212,10 @@ export default function ChatWindow({
           <div className="toolbar-icon" title="Định dạng tin nhắn">
             <Type size={20} />
           </div>
-          <div className="toolbar-icon" title="Tin nhắn nhanh">
-            <Zap size={20} />
+          <div className="toolbar-icon" title="Gửi tin nhắn thoại" onMouseDown={startVoiceRecording} onMouseUp={stopVoiceRecording}>
+            <Mic size={20} />
           </div>
+          
           <div className="toolbar-icon" title="Ví / Chuyển tiền">
             <CreditCard size={20} />
           </div>

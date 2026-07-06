@@ -238,6 +238,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         response.setStatus("success");
 
         Map<String, Object> payload = new HashMap<>();
+        if (data.has("duration")) {
+            payload.put("duration", data.get("duration").asInt());
+        }
         payload.put("type", type);
         payload.put("to", to);
         payload.put("from", fromUser);
