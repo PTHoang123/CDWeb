@@ -518,37 +518,62 @@ export default function ChatWindow({
     e.target.value = null;
   };
 
-  // --- XỬ LÝ FILE (Chọn 1 hoặc nhiều file) ---
-  const handleFileSelect = async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+const handleFileSelect = async (e) => {
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
 
-    for (const file of Array.from(files)) {
-      if (file.size > 5 * 1024 * 1024) { // Giới hạn 5MB
-        alert("File quá lớn (>5MB)"); continue;
+  const fileArray = Array.from(files);
+
+  for (const file of fileArray) {
+    if (file.size > 5 * 1024 * 1024) { // Giới hạn 5MB
+      alert("File quá lớn (>5MB)"); 
+      continue;
+    }
+
+    // Tạo bộ khung dữ liệu tạm thời để hiển thị lên UI trước (Optimistic UI)
+    const fileSizeStr = (file.size / 1024).toFixed(1) + " KB";
+    
+    // Khởi tạo FormData để truyền file vật lý lên Server
+    const formData = new FormData();
+    formData.append("file", file); // Tên tham số "file" phải khớp với @RequestParam("file") ở Spring Boot
+
+    try {
+      // 1. Gửi file lên API Upload của Spring Boot (Cổng 8082)
+      // Bạn có thể dùng chung API upload-voice cũ hoặc tạo một API upload-file riêng ở backend
+      const response = await fetch("http://localhost:8082/api/chat/media/upload-voice", {
+        method: "POST",
+        body: formData,
+        headers: {
+          "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+      });
+
+      if (!response.ok) {
+        console.error("Lỗi upload file lên server:", response.status);
+        alert("Không thể upload file tài liệu.");
+        continue;
       }
 
-      // Convert file sang Base64
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result;
+      const result = await response.json(); // Nhận về JSON chứa { url: "..." }
 
-        // Tạo gói tin File JSON
+      if (result.url) {
+        // 2. Tạo cấu trúc file Payload gọn nhẹ (Chỉ chứa URL chứ không chứa chuỗi Base64 nặng nề nữa)
         const filePayload = {
-          dataType: "file_base64",
+          dataType: "file_url", // Đổi tên để phân biệt với base64 cũ nếu cần
           name: file.name,
-          size: (file.size / 1024).toFixed(1) + " KB",
+          size: fileSizeStr,
           type: file.type,
-          data: base64
+          data: `http://localhost:8082${result.url}` // Lưu thẳng link tải file từ Backend
         };
 
-        const msgString = JSON.stringify(filePayload); // Biến thành chuỗi để gửi
+        const msgString = JSON.stringify(filePayload);
 
+        // 3. Bắn gói tin JSON siêu nhẹ này qua WebSocket (Chỉ mất vài mili-giây, không lo crash)
         if (client && connected) {
           await wsSendChat(client, { type: chatType, to: chatTo, mes: msgString });
         }
 
-        // Hiển thị ngay (Optimistic UI)
+        // 4. Đẩy lên màn hình chat của mình
         setMessages(prev => [...prev, {
           id: Date.now(),
           side: "right",
@@ -557,12 +582,17 @@ export default function ChatWindow({
           author: currentUsername,
           time: new Date().toLocaleTimeString("vi-VN", {hour: "2-digit", minute:"2-digit"})
         }]);
-      };
-      reader.readAsDataURL(file);
+      }
+
+    } catch (error) {
+      console.error("Lỗi trong quá trình xử lý gửi file:", error);
     }
-    e.target.value = null;
-    setShowAttachMenu(false);
-  };
+  }
+
+  // Dọn dẹp menu sau khi tất cả các file trong vòng lặp đã xử lý xong
+  e.target.value = ""; 
+  setShowAttachMenu(false);
+};
 
   // --- XỬ LÝ FOLDER (Upload cả thư mục) ---
   const handleFolderSelect = (e) => {
@@ -1195,13 +1225,19 @@ const renderSingleMessage = (msg) => {
           >
             <ImageIcon size={20} />
           </div>
-          <div
-            className={`toolbar-icon ${showAttachMenu ? "active" : ""}`}
-            onClick={toggleAttachMenu}
-            title="Đính kèm file"
-          >
-            <Paperclip size={20} />
-          </div>
+          <button
+  type="button" // 1. BẮT BUỘC: Ép trình duyệt hiểu đây CHỈ là một nút bấm thường, KHÔNG dùng để submit form
+  className={`toolbar-icon ${showAttachMenu ? "active" : ""}`}
+  onClick={(e) => {
+    e.preventDefault();  // 2. Chặn hành vi submit mặc định của form
+    e.stopPropagation(); // 3. Chặn sự kiện nổi bọt lên các thẻ cha bên ngoài
+    toggleAttachMenu();  // 4. Gọi hàm đóng/mở menu của bạn
+  }}
+  title="Đính kèm file"
+  style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }} // Reset style nút nếu cần
+>
+  <Paperclip size={20} />
+</button>
 
           <div className="toolbar-icon" title="Gửi Danh thiếp">
             <Contact size={20} />

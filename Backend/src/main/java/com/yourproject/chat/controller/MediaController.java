@@ -29,7 +29,6 @@ public class MediaController {
             // Tạo tên file ngẫu nhiên để không bị ghi đè
             String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path filePath = Paths.get(UPLOAD_DIR + fileName);
-
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
             // Trả về URL để Client gọi lấy file

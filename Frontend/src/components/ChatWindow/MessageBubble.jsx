@@ -13,18 +13,20 @@ export default function MessageBubble({ message, onImageClick }) {
 
     // XỬ LÝ TIN NHẮN THOẠI (VOICE)
     // Nếu nội dung chứa đường dẫn uploads/voice, nhận diện và render trình phát nhạc luôn
-    if (typeof rawContent === 'string' && rawContent.includes("/uploads/voice/")) {
-      return (
-        <div className="msg__voice-box">
-          <div className="msg__voice-info">
-            <Volume2 size={18} />
-            <span>Tin nhắn thoại {message?.duration ? `(${message.duration}s)` : ""}</span>
-          </div>
-          {/* Kết nối cổng 8082 của Spring Boot Backend */}
-          <audio controls src={`http://localhost:8082${rawContent}`} className="msg__audio-player" />
+    if (
+    message.type === "voice" || 
+    (typeof rawContent === 'string' && rawContent.endsWith(".webm"))
+  ) {
+    return (
+      <div className="msg__voice-box">
+        <div className="msg__voice-info">
+          <Volume2 size={18} />
+          <span>Tin nhắn thoại {message?.duration ? `(${message.duration}s)` : ""}</span>
         </div>
-      );
-    }
+        <audio controls src={`http://localhost:8082${rawContent}`} className="msg__audio-player" />
+      </div>
+    );
+  }
 
     // Xử lý STICKER
     if (message.type === "sticker") {
@@ -42,7 +44,6 @@ export default function MessageBubble({ message, onImageClick }) {
         />
       );
     }
-
     // Xử lý ẢNH
     if (message.type === "image") {
       return (
@@ -64,20 +65,22 @@ export default function MessageBubble({ message, onImageClick }) {
     }
 
     // Xử lý FILE
-    if (message.type === "file") {
-      const { name, size, data } = message.content || {};
+    if (
+    message.type === "file" || 
+    (typeof rawContent === 'string' && (rawContent.endsWith(".pdf") || rawContent.includes("file_url")))
+  ) {
+    // Chỗ này bạn lấy thông tin file ra để render ô Download
+    // Nếu trong DB lưu chuỗi JSON thô của filePayload thì bạn JSON.parse(rawContent) ra nhé
+    let fileData = message.content || {};
+    if (typeof rawContent === 'string' && rawContent.startsWith("{")) {
+       try { fileData = JSON.parse(rawContent); } catch(e){}
+    }
 
-      const handleDownload = () => {
-        if (!data) return;
-        const link = document.createElement("a");
-        link.href = data; 
-        link.download = name || "file";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      };
+    const name = fileData.name || rawContent.split('/').pop(); // Lấy tạm tên file từ đường dẫn nếu thiếu
+    const size = fileData.size || "Unknown";
+    const downloadUrl = fileData.data || `http://localhost:8082${rawContent}`;
 
-      return (
+    return (
         <div className="msg__file-box">
           <div className="msg__file-icon">
             <FileText size={32} color="#fff" />
@@ -86,12 +89,12 @@ export default function MessageBubble({ message, onImageClick }) {
             <div className="msg__file-name">{name}</div>
             <div className="msg__file-size">{size}</div>
           </div>
-          <div className="msg__file-download" onClick={handleDownload} title="Tải xuống">
+          <a className="msg__file-download" href={downloadUrl} download={name} target="_blank" rel="noreferrer" title="Tải xuống">
             <Download size={20} color="#fff" />
-          </div>
+          </a>
         </div>
-      );
-    }
+    );
+  }
 
     // Xử lý TEXT (Sử dụng chuỗi đã được giải mã font/emoji chuẩn)
     return <div className="msg__text">{renderTextWithLinks(rawContent)}</div>;
