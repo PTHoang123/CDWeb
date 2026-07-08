@@ -1,6 +1,6 @@
 com/yourproject/chat/ChatApplication.class
-com/yourproject/chat/dto/ChatRequest.class
 com/yourproject/chat/entity/ChatMessage.class
-com/yourproject/chat/repository/ChatMessageRepository.class
 com/yourproject/chat/dto/RequestData.class
 com/yourproject/chat/dto/ChatResponse.class
+com/yourproject/chat/dto/ChatRequest.class
+com/yourproject/chat/repository/ChatMessageRepository.class

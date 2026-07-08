@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText, Download, Sticker, Smile, Image as ImageIcon, Volume2 } from "lucide-react"; // Bổ sung icon Volume2 nếu muốn dùng
 import { safeDecode } from "../../api/utils"; // 1. NHỚ IMPORT HÀM GIẢI MÃ CỦA BẠN VÀO ĐÂY
+import { resolveApiUrl } from "../../api/runtime";
 import "./messageBubble.css";
 
 export default function MessageBubble({ message, onImageClick }) {
@@ -23,7 +24,7 @@ export default function MessageBubble({ message, onImageClick }) {
           <Volume2 size={18} />
           <span>Tin nhắn thoại {message?.duration ? `(${message.duration}s)` : ""}</span>
         </div>
-        <audio controls src={`http://localhost:8082${rawContent}`} className="msg__audio-player" />
+        <audio controls src={resolveApiUrl(rawContent)} className="msg__audio-player" />
       </div>
     );
   }
@@ -78,7 +79,7 @@ export default function MessageBubble({ message, onImageClick }) {
 
     const name = fileData.name || rawContent.split('/').pop(); // Lấy tạm tên file từ đường dẫn nếu thiếu
     const size = fileData.size || "Unknown";
-    const downloadUrl = fileData.data || `http://localhost:8082${rawContent}`;
+    const downloadUrl = fileData.data || resolveApiUrl(rawContent);
 
     return (
         <div className="msg__file-box">

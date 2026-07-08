@@ -1,7 +1,9 @@
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/dto/RegisterRequest.java
+/Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/config/WebConfig.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/service/AuthService.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/dto/AuthResponse.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/config/ApplicationConfig.java
+/Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/controller/MediaController.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/handler/ChatWebSocketHandler.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/dto/RequestData.java
 /Users/mac/CDWeb/Backend/src/main/java/com/yourproject/chat/repository/RoomMemberRepository.java

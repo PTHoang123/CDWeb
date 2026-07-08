@@ -20,6 +20,7 @@ import {
   wsGetRoomChatMes,
   wsSendChat,
 } from "../../api/chatApi";
+import { resolveApiUrl } from "../../api/runtime";
 
 const safeEncode = (str) => {
   try {
@@ -540,7 +541,7 @@ const handleFileSelect = async (e) => {
     try {
       // 1. Gửi file lên API Upload của Spring Boot (Cổng 8082)
       // Bạn có thể dùng chung API upload-voice cũ hoặc tạo một API upload-file riêng ở backend
-      const response = await fetch("http://localhost:8082/api/chat/media/upload-voice", {
+      const response = await fetch(resolveApiUrl("/api/chat/media/upload-voice"), {
         method: "POST",
         body: formData,
         headers: {
@@ -563,7 +564,7 @@ const handleFileSelect = async (e) => {
           name: file.name,
           size: fileSizeStr,
           type: file.type,
-          data: `http://localhost:8082${result.url}` // Lưu thẳng link tải file từ Backend
+          data: resolveApiUrl(result.url) // Lưu thẳng link tải file từ Backend
         };
 
         const msgString = JSON.stringify(filePayload);
@@ -825,7 +826,7 @@ const startVoiceRecording = async () => {
     
     try {
         // 1. Gọi API Upload file lên Backend Spring Boot qua cổng 8082
-        const response = await fetch("http://localhost:8082/api/chat/media/upload-voice", {
+        const response = await fetch(resolveApiUrl("/api/chat/media/upload-voice"), {
             method: "POST",
             body: formData,
             headers: {
@@ -918,7 +919,7 @@ const renderSingleMessage = (msg) => {
         return (
             <div key={msg.id} className="chat-bubble voice">
                 🎤 <span>Tin nhắn thoại ({msg.duration || 0}s)</span>
-                <audio controls src={`http://localhost:8082${rawContent}`} />
+                <audio controls src={resolveApiUrl(rawContent)} />
             </div>
         );
     }

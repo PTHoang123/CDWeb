@@ -10,8 +10,7 @@ import Register from "./login/Register.jsx";
 import { WsProvider } from "./context/WsContext";
 import useWs from "./context/useWs";
 import { logoutOverWs } from "./api/wsAuth";
-
-const WS_URL = "ws://localhost:8082/chat/chat";
+import { WS_URL } from "./api/runtime";
 
 function AppInner() {
 

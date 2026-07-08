@@ -1,5 +1,5 @@
 // src/api/auth.js
-const WS_URL = 'ws://localhost:8082/chat/chat'; 
+import { WS_URL } from "./runtime";
 
 export const loginWithWS = (username, password) => {
     return new Promise((resolve, reject) => {
